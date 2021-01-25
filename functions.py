@@ -1,13 +1,14 @@
 import numpy as np
 import networkx as nx
+import pickle
 from scipy.sparse import csr_matrix
 from scipy.sparse import coo_matrix, bmat
 from scipy.sparse.linalg import eigs
-import scipy as sp
 import time
-import os
+import scipy as sp
 
-def draw_connections(lambda_,k, N, alpha, gamma, homogeneity, hyp):
+
+def draw_connections(lambda_,k, N, alpha, gamma, homogeneity=1, hyp=1):
     sp.random.seed()
     b = int(alpha * N)
     epsilon = gamma  # eps determines the half-width of the uniform dist of connectivity weights
@@ -97,7 +98,7 @@ def do_one_timestep(input_type,N,sparseA,s,p_input):
     return s
 
 
-def do_realization_save_window_average(N,n_stationary,n_data,window_size,init_activity,path0,h,input_type,sparseA_list,n):
+def do_realization_save_window_average(path,N,k,alpha,h_list,lambda_list,n_stationary,n_data,init_activity,input_type,window_size,n_lambda_,n_h,n):
     '''
     :param n_stationary:
     :param n_data: number of minimum response mean samples to compute
@@ -106,32 +107,41 @@ def do_realization_save_window_average(N,n_stationary,n_data,window_size,init_ac
     :param h: input intensity
     :param n: indicating which of the graph morphologies is used
     '''
+
+    h=h_list[n_h]
+    lambda_=lambda_list[n_lambda_]
+    print('lambda=' + str(lambda_) + ', n_h=' + str(n_h) + ',n_realization=', n)
     sp.random.seed()
-    n_max=100000           # maximum number of response mean samples to save
-    chunk_size=1000000
-    mean_response=[[]]
-    for i in range(len(window_size)-1):
-        mean_response.append([])
-    # mean_response=np.zeros((n_data,3))
-    print('n=', n)
-    s = np.zeros(N)
+    n_max=1000000           # maximum number of response mean samples to save
+    chunk_size=1000000      # produced trajectory in each round of the loop
+    gamma = lambda_ / (k * (1 - 2 * alpha))     #connection weight
+    s = np.zeros(N)         #activity vector
+
+    #generate initial activity
     g = np.int(N * init_activity)
     c = np.random.permutation(N)
     ind = c[0:g]
     s[ind] = 1
-    p_input = 1 - np.exp(-h)
-    sparseA=sparseA_list[n]
+
+    p_input = 1 - np.exp(-h)        #probability of external Poissonian input
+
+    sparseA=draw_connections(lambda_, k, N, alpha, gamma)
+    pickle.dump(sparseA, open(path + '/sparseA_realization='+str(n), 'wb'))
+
+    mean_response=[[]]
+    for i in range(len(window_size)-1):
+        mean_response.append([])
 
     # run simulation until it reaches steady state
     for i in range(n_stationary):
         s=do_one_timestep(input_type,N,sparseA,s,p_input)
-
+    t = time.time()
     while len(mean_response[-1])<n_data:
         s_avg_temp = []
         # t = time.time()
         print('n_data=',len(mean_response[-1]))
 
-        # produce stationary trajectories of length chunck_size
+        # produce trajectories of length chunck_size
         for step in range(chunk_size):
             s = do_one_timestep(input_type, N, sparseA, s, p_input)
             s_avg_temp.append(np.sum(s) * (1 / N))
@@ -141,50 +151,8 @@ def do_realization_save_window_average(N,n_stationary,n_data,window_size,init_ac
             if len(mean_response[i]) < n_max:
                 groups = [s_avg_temp[x:x + window_size[i]] for x in range(int(len(s_avg_temp) / window_size[i]))]
                 mean_response[i] = np.append(mean_response[i], [sum(group) / len(group) for group in groups])
-
+    print(time.time() - t)
         # print((time.time() - t))
     for i in range(len(window_size)):
-        np.savez_compressed(path0 + '/window'+str(i)+'/realization=' + str(n), mean_response=mean_response[i])
+        np.savez_compressed(path + '/window'+str(i)+'_lambda_='+str(lambda_)+'_n_h='+str(n_h)+'_realization=' + str(n), mean_response=mean_response[i])
 
-
-
-def do_realization(s,N,n_timestep,ps,sparseA,input_type):
-    # print(np.random.uniform(0, 1))
-    s_avg = np.zeros(n_timestep)
-    for i in range(n_timestep):
-        # external_input=np.ones(N)*ps
-        if input_type=='multiplicative':
-            internal_input=sparseA@s
-            p = transfer(internal_input)
-            pind = np.nonzero(p)[0]
-            if np.size(pind) > 0:  # for speeding the code
-                ind = (np.random.uniform(0, 1, np.size(pind)) < p[p > 0])
-                s = np.zeros(N)
-                s[pind[ind]] = 1
-            s=np.logical_or((np.random.uniform(0, 1, N) < ps),s)
-        elif input_type=='additive' :
-            internal_input=sparseA@s
-            value=internal_input + np.ones(N)*ps
-            p = transfer(value)
-            pind = np.nonzero(p)[0]
-            if np.size(pind) > 0:  # for speeding the code
-                ind = (np.random.uniform(0, 1, np.size(pind)) < p[p > 0])
-                s = np.zeros(N)
-                s[pind[ind]] = 1
-        else:
-            print('input type error')
-        s_avg[i]= np.sum(s) * (1 / N)
-    return s_avg
-
-def save_one_realization(N,k,n_stationary,n_data,init_activity,path,h,input_type,sparseA_list,n):
-    sp.random.seed()
-    print('n=', n)
-    s = np.zeros(N)
-    g = np.int(N * init_activity)
-    c = np.random.permutation(N)
-    ind = c[0:g]
-    s[ind] = 1
-    ps = 1 - np.exp(-h)
-    sparseA=sparseA_list[n]
-    S= do_realization(n_stationary,N,n_data,ps,s,sparseA,input_type)
-    np.savez_compressed(path+'/' +str(n), SM=S)
