@@ -12,6 +12,7 @@ warnings.filterwarnings("ignore")
 
 lambda_ = float(sys.argv[1])
 h = float(sys.argv[2])
+n = int(sys.argv[3])
 
 sp.random.seed()
 path_to_save =  'FODR/'
@@ -25,7 +26,7 @@ k=20                                                 # in/out connectivity degre
 input_type='multiplicative'                          # input can be added multiplicatively or additively
 homogeneity = 1                                      # homogeneity of network graph
 hyperregularity=1                                    # hyperregularity of network graph
-n_data = 100000                                     # minimum number of mean responses computed at each realization
+n_data = 10000                                     # minimum number of mean responses computed at each realization
 init_activity=0.01                                   # fraction of initial active neurons
 n_stationary=10000                                    # time steps after which activity becomes stationary
 window_size=np.array([1e1,1e2,1e3,1e4],dtype=np.int) #window sizes for computing the mean response, in ascending order, factors of 10
@@ -34,10 +35,10 @@ window_size=np.array([1e1,1e2,1e3,1e4],dtype=np.int) #window sizes for computing
 pickle.dump([ alpha,N, k, homogeneity, input_type, hyperregularity,n_data, init_activity, n_stationary,
              window_size], open(path_to_save +'/parameters', 'wb'))
 
-func = partial(functions.do_n_realizations_save_window_average,path_to_save, N, k, alpha,n_realization, n_stationary, n_data,
+func = partial(functions.do_realization_save_window_average,path_to_save, N, k, alpha, n_stationary, n_data,
                init_activity, input_type,window_size)
 # t=time.time()
-func(lambda_,h)
+func(lambda_,h,n)
 # print(time.time()-t)
 
 
