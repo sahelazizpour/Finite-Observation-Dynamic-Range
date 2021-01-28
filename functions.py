@@ -169,7 +169,7 @@ def do_n_realizations_save_window_average(path,N,k,alpha,n_realization,n_station
     print('lambda=' + str(lambda_) + ', h=' + str(h) )
     sp.random.seed()
     n_max=1000000           # maximum number of response mean samples to save
-    chunk_size=100000      # produced trajectory in each round of the loop
+    chunk_size=1000000      # produced trajectory in each round of the loop
     tau=1000               # ~ auto correlation time
     gamma = lambda_ / (k * (1 - 2 * alpha))     #connection weight
     p_input = 1 - np.exp(-h)        #probability of external Poissonian input
