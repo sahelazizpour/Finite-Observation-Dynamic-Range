@@ -107,7 +107,7 @@ def do_realization_save_window_average(path,N,k,alpha,n_stationary,n_data,init_a
     :param h: input intensity
     :param n: indicating which of the graph morphologies is used
     '''
-    print('lambda=' + str(lambda_) + ', h=' + str(np.round(h,3)) + ',n_realization=', n)
+    print('lambda=' + str(lambda_) + ', h=' + str(h) + ',n_realization=', n)
 
     sp.random.seed()
     n_max=1000000           # maximum number of response mean samples to save

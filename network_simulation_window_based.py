@@ -11,12 +11,13 @@ import time
 warnings.filterwarnings("ignore")
 
 lambda_ = float(sys.argv[1])
-h = float(sys.argv[2])
+logh = float(sys.argv[2])
 n = int(sys.argv[3])
 
 sp.random.seed()
 path_to_save =  'FODR/'
 
+h=np.power(10,logh)
 
 n_realization=10
 # h_list = np.logspace(-7,2,270).tolist()              # list of input intensities
