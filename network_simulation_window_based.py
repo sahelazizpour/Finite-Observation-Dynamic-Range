@@ -29,6 +29,7 @@ n_realization=10
 alpha = 0                                            # fraction of inhibitory neurons
 N=10000                                               # number of neurons
 k=20                                                 # in/out connectivity degree (choose multiples of 5 or change the function "draw_connections)
+gamma = lambda_ / (k * (1 - 2 * alpha))              # connection weight
 input_type='multiplicative'                          # input can be added multiplicatively or additively
 homogeneity = 1                                      # homogeneity of network graph
 hyperregularity=0                                    # hyperregularity of network graph
@@ -41,8 +42,18 @@ window_size=np.array([1e1,1e2,1e3,1e4],dtype=np.int) #window sizes for computing
 pickle.dump([ alpha,N, k, homogeneity, input_type, hyperregularity,n_data, init_activity, n_stationary,
              window_size], open(path_to_save +'/parameters', 'wb'))
 
-func = partial(functions.do_realization_save_window_average,path_to_save, N, k, alpha, n_stationary, n_data,
-               init_activity, input_type,window_size)
+
+#produce adjacency matrix
+try:
+    sparseA_list=pickle.load(open(path_to_save +'/sparseAlist_lambda='+str(lambda_), 'rb'))
+except:
+    sparseA_list=[]
+    for j in range(n_realization):
+        sparseA_list.append(functions.draw_connections(lambda_, k, N, alpha, gamma))
+    pickle.dump(sparseA_list, open(path_to_save + '/sparseAlist_lambda='+str(lambda_) , 'wb'))
+
+sparseA=sparseA_list[n]
+func = partial(functions.do_realization_save_window_average,path_to_save,N,n_stationary,n_data,init_activity,input_type,window_size,sparseA)
 # t=time.time()
 func(lambda_,h,n)
 # print(time.time()-t)

@@ -98,7 +98,7 @@ def do_one_timestep(input_type,N,sparseA,s,p_input):
     return s
 
 
-def do_realization_save_window_average(path,N,k,alpha,n_stationary,n_data,init_activity,input_type,window_size,lambda_,h,n):
+def do_realization_save_window_average(path,N,n_stationary,n_data,init_activity,input_type,window_size,sparseA,lambda_,h,n):
     '''
     :param n_stationary:
     :param n_data: number of minimum response mean samples to compute
@@ -114,9 +114,7 @@ def do_realization_save_window_average(path,N,k,alpha,n_stationary,n_data,init_a
     chunk_size=1000000      # produced trajectory in each round of the loop
     tau=10
 
-    gamma = lambda_ / (k * (1 - 2 * alpha))     #connection weight
     p_input = 1 - np.exp(-h)  # probability of external Poissonian input
-    sparseA=draw_connections(lambda_, k, N, alpha, gamma)
     # pickle.dump(sparseA, open(path + '/sparseA_realization='+str(n), 'wb'))
     #generate initial activity
     s = np.zeros(N)         #activity vector
@@ -153,11 +151,11 @@ def do_realization_save_window_average(path,N,k,alpha,n_stationary,n_data,init_a
         # print((time.time() - t)/60)
 
     for i in range(len(window_size)):
-        np.savez_compressed(path + '/window'+str(i)+'_lambda_='+str(lambda_)+'_logh='+str(np.round(np.log10(h),3))+'_realization=' + str(n)
+        np.savez_compressed(path + '/window'+str(i)+'_lambda='+str(lambda_)+'_logh='+str(np.round(np.log10(h),3))+'_realization=' + str(n)
                             , logh=np.log10(h), mean_response=mean_response[i])
 
 
-def do_n_realizations_save_window_average(path,N,k,alpha,n_realization,n_stationary,n_data,init_activity,input_type,window_size,lambda_,h):
+def do_n_realizations_save_window_average(path,N,n_realization,n_stationary,n_data,init_activity,input_type,window_size,sparseA,lambda_,h):
     '''
     :param n_stationary:
     :param n_data: number of minimum response mean samples to compute
@@ -172,13 +170,9 @@ def do_n_realizations_save_window_average(path,N,k,alpha,n_realization,n_station
     n_max=1000000           # maximum number of response mean samples to save
     chunk_size=1000000      # produced trajectory in each round of the loop
     tau=1000               # ~ auto correlation time
-    gamma = lambda_ / (k * (1 - 2 * alpha))     #connection weight
     p_input = 1 - np.exp(-h)        #probability of external Poissonian input
 
     for n in range(n_realization):
-        sparseA=draw_connections(lambda_, k, N, alpha, gamma)
-        pickle.dump(sparseA, open(path + '/sparseA_realization='+str(n), 'wb'))
-
         mean_response=[[]]
         for i in range(len(window_size)-1):
             mean_response.append([])
@@ -212,7 +206,7 @@ def do_n_realizations_save_window_average(path,N,k,alpha,n_realization,n_station
         print(time.time() - t)
 
         for i in range(len(window_size)):
-            np.savez_compressed(path + '/window'+str(i)+'_lambda_='+str(lambda_)+'_logh='+str(np.round(np.log10(h),3))+'_realization=' + str(n), logh=np.log10(h), mean_response=mean_response[i])
+            np.savez_compressed(path + '/window'+str(i)+'_lambda='+str(lambda_)+'_logh='+str(np.round(np.log10(h),3))+'_realization=' + str(n), logh=np.log10(h), mean_response=mean_response[i])
 
 
 def do_one_realization(path,N,k,alpha,n_timestep,init_activity,input_type,lambda_,h,n):
