@@ -11,21 +11,27 @@ import time
 warnings.filterwarnings("ignore")
 
 lambda_ = float(sys.argv[1])
-h = float(sys.argv[2])
+n_h = int(sys.argv[2])
 n = int(sys.argv[3])
+
+# lambda_list=1-np.logspace(-4,0,9)
+# lambda_=lambda_list[n_lambda]
+
+logh_list = np.arange(-7,-0.5,0.05).tolist()+ np.arange(-0.5,1.5,0.025).tolist()       # list of input intensities
+h_list=np.power(10,logh_list)
+h=h_list[n_h]
 
 sp.random.seed()
 path_to_save =  'FODR/'
 
 
 n_realization=10
-# h_list = np.logspace(-7,2,270).tolist()              # list of input intensities
 alpha = 0                                            # fraction of inhibitory neurons
 N=10000                                               # number of neurons
 k=20                                                 # in/out connectivity degree (choose multiples of 5 or change the function "draw_connections)
 input_type='multiplicative'                          # input can be added multiplicatively or additively
 homogeneity = 1                                      # homogeneity of network graph
-hyperregularity=1                                    # hyperregularity of network graph
+hyperregularity=0                                    # hyperregularity of network graph
 n_data = 10000                                     # minimum number of mean responses computed at each realization
 init_activity=0.01                                   # fraction of initial active neurons
 n_stationary=10000                                    # time steps after which activity becomes stationary
