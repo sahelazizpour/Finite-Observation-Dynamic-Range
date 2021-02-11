@@ -107,17 +107,17 @@ def do_realization_save_window_average(path,N,k,alpha,n_stationary,n_data,init_a
     :param h: input intensity
     :param n: indicating which of the graph morphologies is used
     '''
-    print('lambda=' + str(lambda_) + ', h=' + str(np.round(h,3)) + ',n_realization=', n)
+    print('lambda=' + str(lambda_) + ', h=' + str(np.round(h,3)) + ' ,n_realization=', n)
 
     sp.random.seed()
     n_max=1000000           # maximum number of response mean samples to save
     chunk_size=1000000      # produced trajectory in each round of the loop
-    tau=1000
+    tau=10
 
     gamma = lambda_ / (k * (1 - 2 * alpha))     #connection weight
     p_input = 1 - np.exp(-h)  # probability of external Poissonian input
     sparseA=draw_connections(lambda_, k, N, alpha, gamma)
-    pickle.dump(sparseA, open(path + '/sparseA_realization='+str(n), 'wb'))
+    # pickle.dump(sparseA, open(path + '/sparseA_realization='+str(n), 'wb'))
     #generate initial activity
     s = np.zeros(N)         #activity vector
     temp = np.int(N * init_activity)
@@ -135,7 +135,7 @@ def do_realization_save_window_average(path,N,k,alpha,n_stationary,n_data,init_a
 
     while len(mean_response[-1])<n_data:
         s_avg_temp = []
-        print('n_data=',len(mean_response[-1]))
+        # print('n_data=',len(mean_response[-1]))
         # t = time.time()
         # produce trajectories of length chunck_size
         for step in range(chunk_size):
@@ -145,11 +145,10 @@ def do_realization_save_window_average(path,N,k,alpha,n_stationary,n_data,init_a
         #average over window sizes
         for i in range(len(window_size)):
             if len(mean_response[i]) < n_max:
-                # if window_size[i] < tau:
-                #     groups = [s_avg_temp[x:x + window_size[i]] for x in np.arange(0, int(len(s_avg_temp) / tau)) * tau]
-                # else:
-                groups = [s_avg_temp[x:x + window_size[i]] for x in
-                              np.arange(0, int(len(s_avg_temp) / window_size[i])) * window_size[i]]
+                if window_size[i] <= tau:
+                    groups = [s_avg_temp[x:x + window_size[i]] for x in np.arange(0, int(len(s_avg_temp) / tau)) * tau]
+                else:
+                    groups = [s_avg_temp[x:x + window_size[i]] for x in np.arange(0, int(len(s_avg_temp) / window_size[i])) * window_size[i]]
                 mean_response[i] = np.append(mean_response[i], [sum(group) / len(group) for group in groups])
         # print((time.time() - t)/60)
 
