@@ -39,15 +39,7 @@ window_size=np.array([1e1,1e2,1e3,1e4],dtype=np.int) #window sizes for computing
 pickle.dump([ alpha,N, k, homogeneity, input_type, hyperregularity,n_data, init_activity, n_stationary,
              window_size], open(path_to_save +'/parameters', 'wb'))
 
-
-#produce adjacency matrix
-try:
-    sparseA=pickle.load(open(path_to_save +'/sparseA_lambda='+str(lambda_)+str(lambda_)+'_realization='+str(n), 'rb'))
-except:
-
-    sparseA=functions.draw_connections(lambda_, k, N, alpha, gamma)
-    pickle.dump(sparseA, open(path_to_save + '/sparseA_lambda='+str(lambda_)+str(lambda_)+'_realization='+str(n), 'wb'))
-
+sparseA=pickle.load(open(path_to_save +'/sparseA_lambda='+str(lambda_)+str(lambda_)+'_realization='+str(n), 'rb'))
 func = partial(functions.do_realization_save_window_average,path_to_save,N,n_stationary,n_data,init_activity,input_type,window_size,sparseA)
 func(lambda_,h,n)
 
