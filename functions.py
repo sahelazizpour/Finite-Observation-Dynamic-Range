@@ -98,7 +98,7 @@ def do_one_timestep(input_type,N,sparseA,s,p_input):
     return s
 
 
-def do_realization_save_window_average(path,N,k,alpha,n_stationary,n_data,init_activity,input_type,window_size,lambda_,h,n):
+def do_realization_save_window_average(path,N,n_stationary,n_data,init_activity,input_type,window_size,sparseA,lambda_,h,n):
     '''
     :param n_stationary:
     :param n_data: number of minimum response mean samples to compute
@@ -112,11 +112,10 @@ def do_realization_save_window_average(path,N,k,alpha,n_stationary,n_data,init_a
     sp.random.seed()
     n_max=1000000           # maximum number of response mean samples to save
     chunk_size=1000000      # produced trajectory in each round of the loop
+    tau=10
 
-    gamma = lambda_ / (k * (1 - 2 * alpha))     #connection weight
     p_input = 1 - np.exp(-h)  # probability of external Poissonian input
-    sparseA=draw_connections(lambda_, k, N, alpha, gamma)
-    pickle.dump(sparseA, open(path + '/sparseA_realization='+str(n), 'wb'))
+    # pickle.dump(sparseA, open(path + '/sparseA_realization='+str(n), 'wb'))
     #generate initial activity
     s = np.zeros(N)         #activity vector
     temp = np.int(N * init_activity)
@@ -131,11 +130,11 @@ def do_realization_save_window_average(path,N,k,alpha,n_stationary,n_data,init_a
     # run simulation until it reaches steady state
     for i in range(n_stationary):
         s=do_one_timestep(input_type,N,sparseA,s,p_input)
-    # t = time.time()
+
     while len(mean_response[-1])<n_data:
         s_avg_temp = []
         # print('n_data=',len(mean_response[-1]))
-
+        # t = time.time()
         # produce trajectories of length chunck_size
         for step in range(chunk_size):
             s = do_one_timestep(input_type, N, sparseA, s, p_input)
@@ -144,16 +143,19 @@ def do_realization_save_window_average(path,N,k,alpha,n_stationary,n_data,init_a
         #average over window sizes
         for i in range(len(window_size)):
             if len(mean_response[i]) < n_max:
-                groups = [s_avg_temp[x:x + window_size[i]] for x in range(int(len(s_avg_temp) / window_size[i]))]
+                if window_size[i] <= tau:
+                    groups = [s_avg_temp[x:x + window_size[i]] for x in np.arange(0, int(len(s_avg_temp) / tau)) * tau]
+                else:
+                    groups = [s_avg_temp[x:x + window_size[i]] for x in np.arange(0, int(len(s_avg_temp) / window_size[i])) * window_size[i]]
                 mean_response[i] = np.append(mean_response[i], [sum(group) / len(group) for group in groups])
-    # print(time.time() - t)
+        # print((time.time() - t)/60)
 
     for i in range(len(window_size)):
-        np.savez_compressed(path + '/window'+str(i)+'_lambda_='+str(lambda_)+'_logh='+str(np.round(np.log10(h),3))+'_realization=' + str(n)
+        np.savez_compressed(path + '/window'+str(i)+'_lambda='+str(lambda_)+'_logh='+str(np.round(np.log10(h),3))+'_realization=' + str(n)
                             , logh=np.log10(h), mean_response=mean_response[i])
 
 
-def do_n_realizations_save_window_average(path,N,k,alpha,n_realization,n_stationary,n_data,init_activity,input_type,window_size,lambda_,h):
+def do_n_realizations_save_window_average(path,N,n_realization,n_stationary,n_data,init_activity,input_type,window_size,sparseA,lambda_,h):
     '''
     :param n_stationary:
     :param n_data: number of minimum response mean samples to compute
@@ -168,13 +170,9 @@ def do_n_realizations_save_window_average(path,N,k,alpha,n_realization,n_station
     n_max=1000000           # maximum number of response mean samples to save
     chunk_size=1000000      # produced trajectory in each round of the loop
     tau=1000               # ~ auto correlation time
-    gamma = lambda_ / (k * (1 - 2 * alpha))     #connection weight
     p_input = 1 - np.exp(-h)        #probability of external Poissonian input
 
     for n in range(n_realization):
-        sparseA=draw_connections(lambda_, k, N, alpha, gamma)
-        pickle.dump(sparseA, open(path + '/sparseA_realization='+str(n), 'wb'))
-
         mean_response=[[]]
         for i in range(len(window_size)-1):
             mean_response.append([])
@@ -200,12 +198,73 @@ def do_n_realizations_save_window_average(path,N,k,alpha,n_realization,n_station
             #average over window sizes
             for i in range(len(window_size)):
                 if len(mean_response[i]) < n_max:
-                    if window_size[i]<tau:
-                        groups = [s_avg_temp[x:x + window_size[i]] for x in np.arange(0,int(len(s_avg_temp) / tau))*tau]
-                    else:
-                        groups = [s_avg_temp[x:x + window_size[i]] for x in np.arange(0, int(len(s_avg_temp) / window_size[i])) * window_size[i]]
+                    # if window_size[i]<tau:
+                    #     groups = [s_avg_temp[x:x + window_size[i]] for x in np.arange(0,int(len(s_avg_temp) / tau))*tau]
+                    # else:
+                    groups = [s_avg_temp[x:x + window_size[i]] for x in np.arange(0, int(len(s_avg_temp) / window_size[i])) * window_size[i]]
                     mean_response[i] = np.append(mean_response[i], [sum(group) / len(group) for group in groups])
         print(time.time() - t)
 
         for i in range(len(window_size)):
-            np.savez_compressed(path + '/window'+str(i)+'_lambda_='+str(lambda_)+'_logh='+str(np.round(np.log10(h),3))+'_realization=' + str(n), logh=np.log10(h), mean_response=mean_response[i])
+            np.savez_compressed(path + '/window'+str(i)+'_lambda='+str(lambda_)+'_logh='+str(np.round(np.log10(h),3))+'_realization=' + str(n), logh=np.log10(h), mean_response=mean_response[i])
+
+
+def do_one_realization(path,N,k,alpha,n_timestep,init_activity,input_type,lambda_,h,n):
+    '''
+    :param n_stationary:
+    :param n_data: number of minimum response mean samples to compute
+    :param window_size: the observation window sizes to average network responses over
+    :param path0: path to save data
+    :param h: input intensity
+    :param n: indicating which of the graph morphologies is used
+    '''
+    print('lambda=' + str(lambda_) + ', h=' + str(np.round(h,3)) + ',n_realization=', n)
+    sp.random.seed()
+    gamma = lambda_ / (k * (1 - 2 * alpha))     #connection weight
+    p_input = 1 - np.exp(-h)  # probability of external Poissonian input
+    sparseA=draw_connections(lambda_, k, N, alpha, gamma)
+    #generate initial activity
+    s = np.zeros(N)         #activity vector
+    temp = np.int(N * init_activity)
+    index = np.random.permutation(N)
+    ind = index[0:temp]
+    s[ind] = 1
+    # run simulation
+    s_avg=[]
+    for i in range(n_timestep):
+        s=do_one_timestep(input_type,N,sparseA,s,p_input)
+        s_avg.append(np.sum(s) * (1 / N))
+
+    np.savez_compressed(path + '/' + str(n), S=s_avg)
+    # pickle.dump([s_avg],open(path + '/' + str(n), 'wb'))
+
+def do_n_realization(path,N,k,alpha,n_timestep,init_activity,input_type,n_realization,h_list,lambda_,n_h):
+    '''
+    :param n_stationary:
+    :param n_data: number of minimum response mean samples to compute
+    :param window_size: the observation window sizes to average network responses over
+    :param path0: path to save data
+    :param h: input intensity
+    :param n: indicating which of the graph morphologies is used
+    '''
+
+    sp.random.seed()
+    gamma = lambda_ / (k * (1 - 2 * alpha))     #connection weight
+    h=h_list[n_h]
+    p_input = 1 - np.exp(-h)  # probability of external Poissonian input
+    for n in range(n_realization):
+        print('lambda=' + str(lambda_) + ', n_h=' + str(n_h) + ',n_realization=', n)
+        sparseA=draw_connections(lambda_, k, N, alpha, gamma)
+        #generate initial activity
+        s = np.zeros(N)         #activity vector
+        temp = np.int(N * init_activity)
+        index = np.random.permutation(N)
+        ind = index[0:temp]
+        s[ind] = 1
+        # run simulation
+        s_avg=[]
+        for i in range(n_timestep):
+            s=do_one_timestep(input_type,N,sparseA,s,p_input)
+            s_avg.append(np.sum(s) * (1 / N))
+
+        np.savez_compressed(path + '/n_h='+str(n_h) +'_n='+ str(n), S=s_avg)
