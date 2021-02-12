@@ -13,9 +13,10 @@ warnings.filterwarnings("ignore")
 lambda_ = float(sys.argv[1])
 logh = float(sys.argv[2])
 n = int(sys.argv[3])
+path_to_save = sys.argv[3]
 
 sp.random.seed()
-path_to_save =  'FODR/'
+#path_to_save =  'FODR/'
 
 h=np.power(10,logh)
 
