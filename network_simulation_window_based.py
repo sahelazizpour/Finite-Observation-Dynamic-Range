@@ -26,7 +26,6 @@ h_list=np.power(10,logh_list)
 h=h_list[n_h]
 
 sp.random.seed()
-#path_to_save =  'FODR/'
 
 n_realization=10
 alpha = 0                                            # fraction of inhibitory neurons
@@ -41,6 +40,9 @@ init_activity=0.01                                   # fraction of initial activ
 n_stationary=10000                                    # time steps after which activity becomes stationary
 window_size=np.array([1e1,1e2,1e3,1e4],dtype=np.int) #window sizes for computing the mean response, in ascending order, factors of 10
 
+path_to_save += "epsilon%.2e"%(1-lambda_)
+os.system("mkdir -p %s"%path_to_save)
+
 #save parameters
 pickle.dump([ alpha,N, k, homogeneity, input_type, hyperregularity,n_data, init_activity, n_stationary,
              window_size], open(path_to_save +'/parameters', 'wb'))
@@ -48,17 +50,13 @@ pickle.dump([ alpha,N, k, homogeneity, input_type, hyperregularity,n_data, init_
 
 #produce adjacency matrix
 try:
-    sparseA_list=pickle.load(open(path_to_save +'/sparseAlist_lambda='+str(lambda_), 'rb'))
+    sparseA=pickle.load(open(path_to_save +'/sparseA_lambda='+str(lambda_)+'_realization='+str(n), 'rb'))
 except:
-    sparseA_list=[]
-    for j in range(n_realization):
-        sparseA_list.append(functions.draw_connections(lambda_, k, N, alpha, gamma))
-    pickle.dump(sparseA_list, open(path_to_save + '/sparseAlist_lambda='+str(lambda_) , 'wb'))
+    sparseA=functions.draw_connections(lambda_, k, N, alpha, gamma)
+    pickle.dump(sparseA, open(path_to_save + '/sparseA_lambda='+str(lambda_)+'_realization='+str(n), 'wb'))
 
-sparseA=sparseA_list[n]
 func = partial(functions.do_realization_save_window_average,path_to_save,N,n_stationary,n_data,init_activity,input_type,window_size,sparseA)
-# t=time.time()
 func(lambda_,h,n)
-# print(time.time()-t)
+
 
 

@@ -1,0 +1,30 @@
+#!/bin/bash
+
+#$ -S /bin/bash
+#$ -N fodr
+#$ -q rostam.q
+#$ -cwd
+#$ -o /data.nst/johannes/Finite-Observation-Dynamic-Range/log/
+#$ -e /data.nst/johannes/Finite-Observation-Dynamic-Range/log/
+
+source ~/.bashrc
+
+# n_lambda in [0,8]
+# n_h in [0,209]
+# n_real [0,9]
+num_h=210
+num_r=10
+num_l=9
+
+# -> -t 1-210*10*9 for full range
+# -> -t 1-18900 for full range
+n_l=$(( (${SGE_TASK_ID}-1)/$num_h/$num_r ))
+n_r=$(( (${SGE_TASK_ID}-1)/$num_h%$num_r ))
+n_h=$(( (${SGE_TASK_ID}-1)%$num_h ))
+
+cd /data.nst/johannes/Finite-Observation-Dynamic-Range/
+
+out=$(printf "/data.nst/johannes/Finite-Observation-Dynamic-Range/data/")
+
+conda activate
+time python3 network_simulation_window_based.py $n_l $n_h $n_r $out
