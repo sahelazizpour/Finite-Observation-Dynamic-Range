@@ -41,15 +41,13 @@ pickle.dump([ alpha,N, k, homogeneity, input_type, hyperregularity,n_data, init_
 
 
 #produce adjacency matrix
-# try:
-#     sparseA_list=pickle.load(open(path_to_save +'/sparseA_list'+str(lambda_), 'rb'))
-# except:
-#     sparseA_list=[]
-#     for i in range(n_realization):
-#         sparseA_list.append(functions.draw_connections(lambda_, k, N, alpha, gamma))
-#     pickle.dump(sparseA_list, open(path_to_save + '/sparseA_lambda='+str(lambda_), 'wb'))
+try:
+    sparseA=pickle.load(open(path_to_save +'/sparseA_lambda='+str(lambda_)+str(lambda_)+'_realization='+str(n), 'rb'))
+except:
 
-sparseA=pickle.load(open(path_to_save +'/sparseA_lambda='+str(lambda_)+'_realization='+str(n), 'rb'))
+    sparseA=functions.draw_connections(lambda_, k, N, alpha, gamma)
+    pickle.dump(sparseA, open(path_to_save + '/sparseA_lambda='+str(lambda_)+str(lambda_)+'_realization='+str(n), 'wb'))
+
 func = partial(functions.do_realization_save_window_average,path_to_save,N,n_stationary,n_data,init_activity,input_type,window_size,sparseA)
 func(lambda_,h,n)
 
