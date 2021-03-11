@@ -6,10 +6,13 @@ from scipy.sparse import coo_matrix, bmat
 from scipy.sparse.linalg import eigs
 import time
 import scipy as sp
+import random
 
 
-def draw_connections(lambda_,k, N, alpha, gamma, homogeneity=1, hyp=1):
-    sp.random.seed()
+def draw_connections(lambda_,k, N, alpha, gamma,n, homogeneity=1, hyp=1):
+    sp.random.seed(n)
+    np.random.seed(n)
+    random.seed(n)
     b = int(alpha * N)
     epsilon = gamma  # eps determines the half-width of the uniform dist of connectivity weights
     ## Hyper regular graph
@@ -64,7 +67,7 @@ def draw_connections(lambda_,k, N, alpha, gamma, homogeneity=1, hyp=1):
 
 
 def transfer(x):
-    # piecewise linear function
+    # piecewise linear transfer function
     x[x<0]=0
     x[x>1]=1
     return x
@@ -107,15 +110,17 @@ def do_realization_save_window_average(path,N,n_stationary,n_data,init_activity,
     :param h: input intensity
     :param n: indicating which of the graph morphologies is used
     '''
-    print('lambda=' + str(lambda_) + ', h=' + str(np.round(h,3)) + ' ,n_realization=', n)
+    print('lambda=' + str(lambda_) + ', h=' + str(h) + ',n_realization=', n)
 
-    sp.random.seed()
+    sp.random.seed(n)
+    np.random.seed(n)
+    random.seed(n)
+
     n_max=1000000           # maximum number of response mean samples to save
     chunk_size=1000000      # produced trajectory in each round of the loop
     tau=10
 
     p_input = 1 - np.exp(-h)  # probability of external Poissonian input
-    # pickle.dump(sparseA, open(path + '/sparseA_realization='+str(n), 'wb'))
     #generate initial activity
     s = np.zeros(N)         #activity vector
     temp = np.int(N * init_activity)
@@ -166,7 +171,7 @@ def do_n_realizations_save_window_average(path,N,n_realization,n_stationary,n_da
 
 
     print('lambda=' + str(lambda_) + ', h=' + str(h) )
-    sp.random.seed()
+    # sp.random.seed()
     n_max=1000000           # maximum number of response mean samples to save
     chunk_size=1000000      # produced trajectory in each round of the loop
     tau=1000               # ~ auto correlation time
@@ -219,7 +224,7 @@ def do_one_realization(path,N,k,alpha,n_timestep,init_activity,input_type,lambda
     :param n: indicating which of the graph morphologies is used
     '''
     print('lambda=' + str(lambda_) + ', h=' + str(np.round(h,3)) + ',n_realization=', n)
-    sp.random.seed()
+    sp.random.seed(n)
     gamma = lambda_ / (k * (1 - 2 * alpha))     #connection weight
     p_input = 1 - np.exp(-h)  # probability of external Poissonian input
     sparseA=draw_connections(lambda_, k, N, alpha, gamma)
@@ -248,7 +253,7 @@ def do_n_realization(path,N,k,alpha,n_timestep,init_activity,input_type,n_realiz
     :param n: indicating which of the graph morphologies is used
     '''
 
-    sp.random.seed()
+    sp.random.seed(n_h)
     gamma = lambda_ / (k * (1 - 2 * alpha))     #connection weight
     h=h_list[n_h]
     p_input = 1 - np.exp(-h)  # probability of external Poissonian input
