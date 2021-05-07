@@ -50,7 +50,7 @@ else:
 
 #save parameters
 parameters = {
-  "alpha": alpha,"N": N,"k": k,"input_type" : input_type,"init_activity": init_activity,"hyperregularity": hyperregularity, "homogeneity":homogeneity
+  "alpha": alpha,"N": N,"N_sub" : N_sub,"k": k,"input_type" : input_type,"init_activity": init_activity,"hyperregularity": hyperregularity, "homogeneity":homogeneity
     ,"n_stationary": n_stationary,"window_size": window_size.tolist()
 
 }
