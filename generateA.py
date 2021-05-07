@@ -9,16 +9,15 @@ import sys
 import os
 warnings.filterwarnings("ignore")
 
-alpha= float(sys.argv[1])
-n_lambda = int(sys.argv[2])
-n = int(sys.argv[3])
-path_to_save0 = sys.argv[4]
 
+n_lambda = int(sys.argv[1])
+n = int(sys.argv[2])
+path_to_save0 = sys.argv[3]
 
+alpha = 0                                            # fraction of inhibitory neurons
 n_realization=10
-# alpha = 0                                            # fraction of inhibitory neurons
 N=10000                                               # number of neurons
-k=20                                                 # in/out connectivity degree (choose multiples of 5 or change the function "draw_connections)
+k=100                                                 # in/out connectivity degree (choose multiples of 5 or change the function "draw_connections)
 input_type='multiplicative'                          # input can be added multiplicatively or additively
 homogeneity = 1                                      # homogeneity of network graph
 hyperregularity = 1
