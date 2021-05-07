@@ -101,6 +101,131 @@ def do_one_timestep(input_type,N,sparseA,s,p_input):
     return s
 
 
+def do_one_timestep_subpop(input_type,N,N_sub,sparseA,s,p_input):
+    '''
+    :param s: 1xN array of binary values [0,1] indicating whether neuron is active or not
+    '''
+    if input_type == 'multiplicative':
+        internal_input = sparseA @ s
+        p = np.asarray( transfer(internal_input))
+        ind_nonzero = np.nonzero(p)[0]
+        s=np.zeros(N)
+        if np.size(ind_nonzero) > 0 :  # for speeding up the code
+            ind_spike = (np.random.uniform(0, 1, np.size(ind_nonzero)) < p[ind_nonzero])
+            s[ind_nonzero[ind_spike]] = 1
+        temp=np.zeros(N)
+        temp[:N_sub]=np.random.uniform(0, 1, N_sub) < p_input
+        s = np.logical_or(temp, s)     #neuron spikes either because of internal or external input
+
+    # elif input_type == 'additive':
+    #     internal_input = sparseA @ s
+    #     value = internal_input + np.ones(N) * p_input
+    #     p = transfer(value)
+    #     ind_nonzero = np.nonzero(p)[0]
+    #     s = np.zeros(N)
+    #     if np.size(ind_nonzero) > 0:  # for speeding up the code
+    #         ind_spike = (np.random.uniform(0, 1, np.size(ind_nonzero)) < p[ind_nonzero])
+    #         s[ind_nonzero[ind_spike]] = 1
+    # else:
+    #     print('input type error')
+    return s
+
+
+def do_realization_save_subpopulation_window_average(path, N, N_sub, n_stationary, n_data, init_activity, input_type,
+                                                     window_size, sparseA, lambda_, h,n):
+    '''
+    :param N: number of neurons in the network
+    :param N_sub: number of neurons in the input/output subpopulation
+    :param n_stationary: number of timestep after which the dynamics is stationary
+    :param n_data: number of minimum response mean samples to compute
+    :param window_size: the observation window sizes to average network responses over
+    :param path0: path to save data
+    :param h: input intensity
+    :param n: indicating which of the graph morphologies is used
+
+    '''
+    print("epsilon=%.2e" % (1 - lambda_) + ', h=' + str(h) + ',n_realization=', n)
+
+    sp.random.seed(n)
+    np.random.seed(n)
+    random.seed(n)
+
+    n_max = 1000000  # maximum number of response mean samples to save
+    chunk_size = 1000000  # produced trajectory in each round of the loop
+    tau = 10
+    m = int(N / N_sub)
+    # index of readout neurons in "fix" scenario
+    ind_sub_random = np.random.randint(low=0, high=N_sub, size=int(N_sub / m)).tolist() + np.random.randint(low=N_sub,high=N,size=int((m - 1) * N_sub / m)).tolist()
+
+    p_input = 1 - np.exp(-h)  # probability of external Poissonian input
+    # generate initial activity
+    s = np.zeros(N)  # activity vector
+    temp = np.int(N * init_activity)
+    index = np.random.permutation(N)
+    ind = index[0:temp]
+    s[ind] = 1
+
+    mean_response_full = [[]];
+    mean_response_sub_fix = [[]];
+    mean_response_sub_random = [[]]
+    for i in range(len(window_size) - 1):
+        mean_response_full.append([])
+        mean_response_sub_fix.append([])
+        mean_response_sub_random.append([])
+
+    # run simulation until it reaches steady state
+    for i in range(n_stationary):
+        s = do_one_timestep_subpop(input_type, N, N_sub, sparseA, s, p_input)
+
+    while len(mean_response_full[-1]) < n_data:
+        s_avg_sub_random = []
+        s_avg_sub_fix = []
+        s_avg_full = []
+        # produce trajectories of length chunck_size
+        for step in range(chunk_size):
+            s = do_one_timestep_subpop(input_type, N, N_sub, sparseA, s, p_input)
+            s_avg_full.append(np.mean(s))
+            s_avg_sub_random.append(np.mean(s[ind_sub_random]))
+            s_avg_sub_fix.append(np.mean(s[-N_sub:]))
+
+        # average over window sizes
+        for i in range(len(window_size)):
+            if len(mean_response_full[i]) < n_max:
+                if window_size[i] <= tau:
+                    groups_full = [s_avg_full[x:x + window_size[i]] for x in
+                                   np.arange(0, int(len(s_avg_full) / tau)) * tau]
+                    groups_sub_fix = [s_avg_sub_fix[x:x + window_size[i]] for x in
+                                      np.arange(0, int(len(s_avg_sub_fix) / tau)) * tau]
+                    groups_sub_random = [s_avg_sub_random[x:x + window_size[i]] for x in
+                                         np.arange(0, int(len(s_avg_sub_random) / tau)) * tau]
+                else:
+                    groups_full = [s_avg_full[x:x + window_size[i]] for x in
+                                   np.arange(0, int(len(s_avg_full) / window_size[i])) * window_size[i]]
+                    groups_sub_fix = [s_avg_sub_fix[x:x + window_size[i]] for x in
+                                      np.arange(0, int(len(s_avg_sub_fix) / window_size[i])) * window_size[i]]
+                    groups_sub_random = [s_avg_sub_random[x:x + window_size[i]] for x in
+                                         np.arange(0, int(len(s_avg_sub_random) / window_size[i])) * window_size[i]]
+                mean_response_full[i] = np.append(mean_response_full[i],
+                                                  [sum(group) / len(group) for group in groups_full])
+                mean_response_sub_fix[i] = np.append(mean_response_sub_fix[i],
+                                                     [sum(group) / len(group) for group in groups_sub_fix])
+                mean_response_sub_random[i] = np.append(mean_response_sub_random[i],
+                                                        [sum(group) / len(group) for group in groups_sub_random])
+
+    for i in range(len(window_size)):
+        np.savez_compressed(path + '/subFull_window' + str(i) + '_lambda=' + str(lambda_) + '_logh=' + str(
+            np.round(np.log10(h), 3)) + '_realization=' + str(n)
+                            , logh=np.log10(h), mean_response=mean_response_full[i])
+        np.savez_compressed(
+            path + '/subFix_window' + str(i) + '_lambda=' + str(lambda_) + '_logh=' + str(
+                np.round(np.log10(h), 3)) + '_realization=' + str(n)
+            , logh=np.log10(h), mean_response=mean_response_sub_fix[i])
+        np.savez_compressed(
+            path + '/subRandom_window' + str(i) + '_lambda=' + str(lambda_) + '_logh=' + str(
+                np.round(np.log10(h), 3)) + '_realization=' + str(n)
+            , logh=np.log10(h), mean_response=mean_response_sub_random[i])
+
+
 def do_realization_save_window_average(path,N,n_stationary,n_data,init_activity,input_type,window_size,sparseA,lambda_,h,n):
     '''
     :param n_stationary:
