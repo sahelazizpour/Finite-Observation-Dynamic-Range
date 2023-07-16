@@ -26,9 +26,8 @@ n_realization=10
 bin_size=1; bins_edge=np.arange(0,N_record+2,bin_size)
 n_bins=len(bins_edge)-1
 
-directory='/home/sahelazizpour/PycharmProjects/BranchingNetwork/'
-path_to_save = directory+'/2023/results/MI_withNoise_noWall/sub'+typ+'/'
-path_to_data= directory+'data/network_simulation/subpop_k=100/fixed_indegree/'
+path_to_save = 'results/MI_withNoise_noWall/sub'+typ+'/'
+path_to_data= 'data/network_simulation/subpop_k=100/fixed_indegree/'
 
 #from simulation data
 MI_simu=np.zeros(len(eps_list))

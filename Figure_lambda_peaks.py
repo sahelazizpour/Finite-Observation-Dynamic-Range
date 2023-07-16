@@ -17,8 +17,8 @@ sigma_noise = 0.01
 window_list = [1, 10, 100, 1000, 10000]
 sub_typ = 'Full'
 # sub_typ='Random'
-path='/home/sahelazizpour/PycharmProjects/BranchingNetwork/2023/results/FODR_withNoise_noWall/sub'+sub_typ+'/simu/'
-path_to_MI='/home/sahelazizpour/PycharmProjects/BranchingNetwork/2023/results//MI_withNoise_noWall/sub'+sub_typ+'/'
+path='results/FODR_withNoise_noWall/sub'+sub_typ+'/simu/'
+path_to_MI='results//MI_withNoise_noWall/sub'+sub_typ+'/'
 
 measure_type='FODR'
 eps_list = np.logspace(-4, 0, 9)

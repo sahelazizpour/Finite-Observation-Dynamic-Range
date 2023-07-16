@@ -19,9 +19,9 @@ window_list=[1,10,100,1000,10000]
 error=0.2
 sigma_noise=1e-2
 sub_typ='Full' #'Random'
-mainpath='/home/sahelazizpour/PycharmProjects/BranchingNetwork/2023/results/FODR_withNoise_noWall/sub'+sub_typ
+mainpath='results/FODR_withNoise_noWall/sub'+sub_typ
 path=mainpath+'/simu/'
-path_to_MI='/home/sahelazizpour/PycharmProjects/BranchingNetwork/2023/results//MI_withNoise_noWall/sub'+sub_typ+'/'
+path_to_MI='results//MI_withNoise_noWall/sub'+sub_typ+'/'
 
 # path='/data/network_simulation/subpop_k=100/fixed_indegree/MI/subFull/with_noise/simu/'
 
