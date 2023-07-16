@@ -20,10 +20,35 @@ import pandas as pd
 from scipy.interpolate import interp1d
 import sympy as sy
 from sympy import nsimplify , simplify , exp, sqrt ,log,re ,im,lambdify,log
+from scipy.special import comb
 # from sympy import oo, Symbol, integrate
 # from scipy.optimize import curve_fit
 import os
 
+
+def entropy(p_vec):
+    return -1*np.sum(np.dot(p_vec,np.log(p_vec)))
+
+def entropy_x_given_y(p_joint,y):
+    output=0
+    for j in range(len(y)):
+        # for i in range(len(x)):
+        # print(len(np.isnan(p_joint[:,j]*( np.log(p_joint[:,j])-np.log(np.sum(p_joint[:,j])) ))))
+        #     output+=np.sum(~np.isnan(p_joint[:,j]*( np.log(p_joint[:,j])-np.log(np.sum(p_joint[:,j])))))
+        temp=p_joint[:,j]*( np.log(p_joint[:,j])-np.log(np.sum(p_joint[:,j])))
+        output += np.sum(temp[~np.isnan(temp)])
+    return -1*output
+
+def get_N_sub(input_output,N,mu):
+    if input_output=='inSub1_outAll' or input_output=='inAll_outAll' :
+        N_sub=N
+    elif input_output=='inSub1_outSub1' or input_output=='inSub1_outSub3':
+        N_sub=N*mu
+    elif input_output=='inSub1_outSub2':
+        N_sub=N*(1-mu)
+    else:
+        print('invalid input_output')
+    return N_sub
 
 
 def compute_meanfield_n(input_output,N,mu,p_val,m_val):
@@ -102,6 +127,19 @@ def compute_dist_params(input_output,N,mu,m_val,p_val):
     return a_val,b_val,c_val, d_val
 
 
+def analytical_expr(epsilon):
+    if epsilon==1:
+        n, a, c, d= sy.symbols(['n', 'a', 'c', 'd'], real=True, imaginary=False)
+        G = ( c * n + d)
+        intgr_output = 2*(d*(c-a)*log(c*n+d)+a*c*n)/c**2
+    else:
+        n, a, b, c, d = sy.symbols(['n', 'a', 'b', 'c', 'd'], real=True, imaginary=False)
+        G = (b * n ** 2 + c * n + d)
+        intgr_output = (((a / b) * log(G )) - (((a * c - 2 * b * d) / (b * sqrt(-4 * b * d + c ** 2))) * log(
+            (sqrt(-4 * b * d + c ** 2) - (2 * b * n + c)) / (sqrt(-4 * b * d + c ** 2) + (2 * b * n + c)))))
+    expr = intgr_output - intgr_output.evalf(subs={n: 0})-log(G)
+    return expr
+
 def prob_dist_analytic(s_val,expression_eval):
     n = sy.symbols('n', real=True, imaginary=False)
     return expression_eval.evalf(subs={n: s_val})
@@ -149,7 +187,7 @@ def analytic_pdf_helper(num_sample,step='None',*params):
     p_val = 1 - np.exp(-1 * np.power(10, logh))
     a_val, b_val, c_val, d_val = compute_dist_params(input_output, N, mu, m_val, p_val)
     expr_eval = expr.evalf(subs={a: a_val, b: b_val, c: c_val, d: d_val})
-    G_eval = G.evalf(subs={b: b_val, c: c_val, d: d_val})
+    #G_eval = G.evalf(subs={b: b_val, c: c_val, d: d_val})
     minn = 0;maxx = N_sub - 1
     mean_n = compute_meanfield_n(input_output, N, mu, p_val, m_val)
     n = sy.symbols('n', real=True, imaginary=False)
@@ -161,6 +199,8 @@ def analytic_pdf_helper(num_sample,step='None',*params):
     toy_p = temp_p / np.sum(temp_p[~np.isnan(temp_p)])
     low_values_flags = toy_p > eps
     sigma = n_list[low_values_flags][-1] - n_list[low_values_flags][0]
+    # bound_left = mean_n - max(k_signal * sigma, k_noise * sigma_noise_adapted)
+    # bound_right = mean_n + max(k_signal * sigma, k_noise * sigma_noise_adapted)
     bound_left = mean_n - max(k_signal * sigma, k_noise * sigma_noise_adapted)
     bound_right = mean_n + max(k_signal * sigma, k_noise * sigma_noise_adapted)
     if step=='None':
@@ -172,10 +212,8 @@ def analytic_pdf_helper(num_sample,step='None',*params):
     temp_p = np.exp(temp_logp - np.max(temp_logp[~np.isnan(temp_logp)]))
     prob = np.zeros_like(x_disc)
     prob[ind] = temp_p / np.sum(temp_p[~np.isnan(temp_p)])
-    x = x_disc / N_sub
-    pdf = prob / (x[1] - x[0])
-    mean = mean_n / N_sub
-    return x_disc, prob
+    # x = x_disc / N_sub; pdf = prob / (x[1] - x[0]);mean = mean_n / N_sub
+    return x_disc, prob ,mean_n
 
 
 def evaluate_dist(input_output,N,mu,m_val,p_val,expr,G):
@@ -185,7 +223,9 @@ def evaluate_dist(input_output,N,mu,m_val,p_val,expr,G):
     G_eval = G.evalf(subs={b: b_val, c: c_val, d: d_val})
     return expr_eval,G_eval
 
-def generate_discrete_pdf_analytic(right_boundary,expr,G,logh,*params):
+
+
+def generate_pdf_analytic(right_boundary,expr,G,logh,*params):
     plot=0; step='None'
     k_signal = 5;k_noise = 5;num_sample = 100000
     N, input_output, m_val, mu, sigma_noise = params
@@ -197,66 +237,184 @@ def generate_discrete_pdf_analytic(right_boundary,expr,G,logh,*params):
         sigma = sigma_dist(input_output, mu, p_val, m_val, G_eval)
         bound_left = mean_n - max(k_signal * sigma, k_noise * sigma_noise_adapted)
         bound_right = mean_n + max(k_signal * sigma, k_noise * sigma_noise_adapted)
-        x_disc= np.linspace(bound_left, bound_right, num_sample)
-        temp = np.array([prob_dist_analytic(0,N,x_disc[i], expr_eval) for i in range(num_sample)])
-        x=x_disc/(N)
-        pdf= (temp / sum(temp)) / (x[1]-x[0])
-        mean=mean_n/N
-    if input_output=='inSub1_outSub1' or input_output=='inSub1_outSub2':
+        x_discrete= np.linspace(bound_left, bound_right, num_sample)
+        temp = np.array([prob_dist_analytic(0,N,x_discrete[i], expr_eval) for i in range(num_sample)])
+        pdf_discrete=temp / sum(temp)
+        mean_disc=mean_n
+        #x=x_disc/(N);pdf= pdf_discrete / (x[1]-x[0]);mean=mean_n/N
+    if input_output=='inSub1_outSub1':
         params2 = [N, N*mu, input_output, m_val, mu, sigma_noise, logh, expr, G]
-        x_disc, prob = analytic_pdf_helper(num_sample,step,*params2)
-        x = x_disc / (N*mu)
-        pdf = prob / (x[1] - x[0])
+        x_discrete, pdf_discrete,mean_disc = analytic_pdf_helper(num_sample,step,*params2)
+        #x = x_discrete / (N*mu); pdf = pdf_discrete / (x[1] - x[0]);mean=mean_disc
+
+    if input_output=='inSub1_outSub2':
+        params2 = [N, N*(1-mu), input_output, m_val, mu, sigma_noise, logh, expr, G]
+        x_discrete, pdf_discrete,mean_disc = analytic_pdf_helper(num_sample,step,*params2)
+        #x = x_discrete / (N*(1-mu));pdf = pdf_discrete / (x[1] - x[0]);mean=mean_disc
 
     if input_output == 'inSub1_outAll':
-        expr_eval, G_eval = evaluate_dist('inSub1_outSub1',N,mu,m_val,p_val,expr,G)
-        mean_n1 = compute_meanfield_n('inSub1_outSub1',N, mu, p_val, m_val)
-        mean_n2 = compute_meanfield_n('inSub1_outSub2', N, mu, p_val, m_val)
+        # mean_n1 = compute_meanfield_n('inSub1_outSub1',N, mu, p_val, m_val)
+        # mean_n2 = compute_meanfield_n('inSub1_outSub2', N, mu, p_val, m_val)
 
         if m_val != 0:
             params = [N, N*mu, 'inSub1_outSub1', m_val, mu, sigma_noise, logh, expr, G]
-            x1_discrete, prob1 = analytic_pdf_helper(num_sample,step,*params)
+            x1_discrete, prob1,mean_n1 = analytic_pdf_helper(num_sample,step,*params)
             params = [N, N*(1-mu), 'inSub1_outSub2', m_val, mu, sigma_noise, logh, expr, G]
             step=x1_discrete[1]-x1_discrete[0]
-            x2_discrete, prob2 = analytic_pdf_helper(num_sample,step,*params)
+            x2_discrete, prob2,mean_n2 = analytic_pdf_helper(num_sample,step,*params)
             if right_boundary == 1:
-                mean = (mean_n1 + mean_n2)/N
-                x_discrete= x2_discrete + mean_n1
-                x = x_discrete/ N
-                pdf = prob2 / (x[1] - x[0])
+                x_discrete = x2_discrete + mean_n1
+                pdf_discrete=prob2
+                mean_disc = mean_n1 + mean_n2
+                #x = x_discrete/ N; pdf = prob2 / (x[1] - x[0]);mean = mean_disc/N
             elif right_boundary == 0:
                 temp_conv = signal.convolve(prob1, prob2, mode='same')
-                prob = temp_conv / sum(temp_conv)
-                mean = (mean_n1 + mean_n2) / N
+                pdf_discrete = temp_conv / sum(temp_conv)
+                mean_disc=mean_n1 + mean_n2
                 x_discrete = x1_discrete + ((x2_discrete[-1]+x2_discrete[0])/2)
-                x = x_discrete / N
-                pdf= prob / (x[1] - x[0])  # so that the integral is 1
+                #x = x_discrete / N; pdf= pdf_discrete / (x[1] - x[0]); mean = mean_disc / N
             if plot == 1:
                 plt.figure()
                 plt.plot(x1_discrete, prob1,color='blue')
                 plt.plot(x2_discrete, prob2,color='orange')
-                plt.plot(x_discrete, prob,color='green')
-            if plot == 1:
-                plt.figure()
-                plt.plot(x,pdf)
+                plt.plot(x_discrete, pdf_discrete,color='green')
         elif m_val == 0:
             if right_boundary == 0:
                 params = [N, N*mu, 'inSub1_outSub1', m_val, mu, sigma_noise, logh, expr, G]
-                x1_discrete, prob1 = analytic_pdf_helper( num_sample,*params)
-                x=x1_discrete/N
-                pdf=prob1 /(x[1]-x[0])
-                mean=mean_n1/N
+                x1_discrete, prob1,mean_n1 = analytic_pdf_helper( num_sample,*params)
+                mean_disc=mean_n1
+                pdf_discrete=prob1
+                #x=x1_discrete/N;pdf=pdf_discrete /(x[1]-x[0]); mean=mean_disc/N
     else:
         print('invalid input_output')
-    return x,pdf,mean
+    #return x, pdf, mean
+    return x_discrete,pdf_discrete,mean_disc
 
+
+def generate_analyic_pdf_for_MI(input_output,expr, N, mu, m_val, logh):
+    """
+        todo:1)integrate it the functions in FODR_utils
+            2) add other input_output conditions as well
+    """
+    if input_output == 'inSub1_outAll':
+        p_val = 1 - np.exp(-1 * np.power(10, logh))
+        n, a, b, c, d = sy.symbols(['n', 'a', 'b', 'c', 'd'], real=True, imaginary=False)
+        maxx = N * mu
+        a_val, b_val, c_val, d_val = compute_dist_params('inSub1_outSub1', N, mu, m_val, p_val)
+        expr_eval = expr.evalf(subs={a: a_val, b: b_val, c: c_val, d: d_val})
+        mean1 = compute_meanfield_n('inSub1_outSub1', N, mu, p_val, m_val)
+        if m_val != 0:
+            n = sy.symbols('n', real=True, imaginary=False)
+            f = lambdify(n, expr_eval, 'numpy')
+            x1 = np.arange(maxx + 1)
+            temp_logp = f(x1)
+            temp_logp[np.logical_or(np.isinf(temp_logp), np.isnan(temp_logp))] = np.max(
+                temp_logp[np.logical_and(~np.isinf(temp_logp), ~np.isnan(temp_logp))])
+            temp_p = np.exp(temp_logp - np.max(temp_logp[~np.isnan(temp_logp)]))
+            p_s1 = temp_p / np.sum(temp_p[~np.isnan(temp_p)])
+            p_s1 = p_s1 / (x1[1] - x1[0])
+
+            maxx = N * (1 - mu)  # - 1
+            a_val, b_val, c_val, d_val = compute_dist_params('inSub1_outSub2', N, mu, m_val, p_val)
+            expr_eval = simplify(expr.evalf(subs={a: a_val, b: b_val, c: c_val, d: d_val}))
+            n = sy.symbols('n', real=True, imaginary=False)
+            f = lambdify(n, expr_eval, 'numpy')
+            mean2 = compute_meanfield_n('inSub1_outSub2', N, mu, p_val, m_val)
+            x2 = np.arange(maxx + 1)
+            temp_logp = f(x2)
+            temp_p = np.exp(temp_logp - np.max(temp_logp[~np.isnan(temp_logp)]))
+            p_s2 = temp_p / np.sum(temp_p[~np.isnan(temp_p)])
+            p_s2 = p_s2 / (x2[1] - x2[0])
+
+            temp_conv = signal.convolve(p_s1, p_s2, mode='full')
+            prob = temp_conv / sum(temp_conv)
+            mean = (mean1 + mean2)
+            x = np.arange(N + 1)
+            pdf_discrete = prob / (x[1] - x[0])  # so that the integral is 1
+        elif m_val == 0:
+            maxx = N * mu  # - 1
+            n = sy.symbols('n', real=True, imaginary=False)
+            f = lambdify(n, expr_eval, 'numpy')
+            x1 = np.arange(maxx + 1)
+            temp_logp = f(x1)
+            temp_p = np.exp(temp_logp - np.max(temp_logp[~np.isnan(temp_logp)]))
+            p_s1 = temp_p / np.sum(temp_p[~np.isnan(temp_p)])
+            p_s1 = p_s1 / (x1[1] - x1[0])
+
+            mean = mean1
+            x = np.arange(N + 1)
+            pdf_discrete = np.zeros(len(x))
+            pdf_discrete[0:int(maxx) + 1] = p_s1  # so that the integral is 1
+
+    return x, np.abs(pdf_discrete), mean
+
+
+def compute_MI_theo(input_output,eps_list,logh_list,sigma_noise_adapted,N,mu,):
+    N_record=get_N_sub(input_output,N,mu)
+    l_list = 1 - eps_list
+    n_bins=1
+    MI_theo = np.zeros(len(eps_list))
+    for l, lambda_ in enumerate(l_list):
+        print('lambda=' + str(lambda_))
+        p_joint = np.zeros((len(logh_list), n_bins))
+        p_joint_with_noise = np.zeros_like(p_joint)
+        expr = analytical_expr(1 - lambda_)
+        for g, logh_ in enumerate(logh_list):
+            print('g=', g)
+            n_h = [i for i in range(len(logh_list)) if logh_list[i] == logh_][0]
+            x, pdf_discrete, mean = generate_analyic_pdf_for_MI(input_output,expr, N, mu, lambda_, logh_)
+            mean = int(mean)
+            p_joint[g, :] = pdf_discrete
+
+            k_signal = 5;
+            k_noise = 5;
+            max_p = max(pdf_discrete)
+            ind1 = 0; ind2 = N_record
+            try:
+                ind1 = [i for i in range(len(pdf_discrete) - 1) if
+                        np.logical_and(pdf_discrete[i + 1] > max_p / 2, pdf_discrete[i] <= max_p / 2)][0]
+            except:
+                pass
+            try:
+                ind2 = [i for i in range(len(pdf_discrete) - 1) if
+                        np.logical_and(pdf_discrete[i + 1] <= max_p / 2, pdf_discrete[i] > max_p / 2)][0]
+            except:
+                pass
+            sigma = ind2 - ind1
+            bound_left = mean - int(max(k_signal * sigma, k_noise * sigma_noise_adapted))
+            bound_right = mean + int(max(k_signal * sigma, k_noise * sigma_noise_adapted))
+            x = np.arange(bound_left, bound_right)
+            temp = np.zeros(len(x))
+            temp[np.logical_and(x >= 0, x <= N_record)] = p_joint[n_h, x[np.logical_and(x >= 0, x <= N_record)]]
+            pdf_original = temp / (sum(temp) * (x[1] - x[0]))
+            gaussian_noise = stats.norm.pdf(x, mean, sigma_noise_adapted)
+            plt.plot(x, gaussian_noise)
+            temp_conv = signal.convolve(pdf_original, gaussian_noise, mode='same')
+            prob = temp_conv / sum(temp_conv)
+            p_at_N_record = sum(prob[np.where(x >= N_record)[0]])
+            p_at_zero = sum(prob[np.where(x <= 0)[0]])
+            pdf_final = prob / (x[1] - x[0])  # so that the integral is 1
+            p_joint_with_noise[n_h, x[np.logical_and(x >= 0, x <= N_record)]] = pdf_final[
+                np.logical_and(x >= 0, x <= N_record)]
+            p_joint_with_noise[n_h, 0] = p_at_zero
+            p_joint_with_noise[n_h, -1] = p_at_N_record
+
+        bins_edge = np.arange(n_bins)
+        p_joint_with_noise = p_joint_with_noise / np.sum(p_joint_with_noise)
+        # p_joint = p_joint / np.sum(p_joint)
+        p_x = np.ones(len(logh_list)) * (1 / len(logh_list))
+        y = bins_edge + (bins_edge[1] - bins_edge[0]) / 2
+        MI_theo[l] = entropy(p_x) - entropy_x_given_y(p_joint_with_noise, y)
+    return MI_theo
 
 def add_gaussian_noise_to_analytic_dist( input_output,N,right_boundary,sigma_noise,*dist_params):
     logh,m_val, mu, expr, G=dist_params
     params=[N, input_output, m_val, mu, sigma_noise]
-    x,pdf_discrete,mean=generate_discrete_pdf_analytic(right_boundary,expr,G,logh,*params)
+    x_discrete,pdf_discrete,mean_discrete=generate_pdf_analytic(right_boundary,expr,G,logh,*params)
+    N_sub=get_N_sub(input_output,N,mu)
+    x=x_discrete/N_sub; pdf=pdf_discrete/(x[1]-x[0]); mean=mean_discrete/N_sub
     gaussian_noise = stats.norm.pdf(x, mean, sigma_noise)
-    temp_conv = signal.convolve(pdf_discrete, gaussian_noise, mode='same')
+    temp_conv = signal.convolve(pdf, gaussian_noise, mode='same')
     prob = temp_conv / sum(temp_conv)
     p_at_one = sum(prob[np.where(x >= 1)[0]])
     p_at_zero = sum(prob[np.where(x <= 0)[0]])
@@ -558,6 +716,89 @@ def smooth(x, window_len=11, window='hanning'):
     y = np.convolve(w / w.sum(), s, mode='valid')
     return y[int(window_len/2-1):-int(window_len/2)]
 
+def get_bezier_parameters(X, Y, degree=3):
+    """ Least square qbezier fit using penrose pseudoinverse.
+
+    Parameters:
+
+    X: array of x data.
+    Y: array of y data. Y[0] is the y point for X[0].
+    degree: degree of the Bézier curve. 2 for quadratic, 3 for cubic.
+
+    Based on https://stackoverflow.com/questions/12643079/b%C3%A9zier-curve-fitting-with-scipy
+    and probably on the 1998 thesis by Tim Andrew Pastva, "Bézier Curve Fitting".
+    """
+    if degree < 1:
+        raise ValueError('degree must be 1 or greater.')
+
+    if len(X) != len(Y):
+        raise ValueError('X and Y must be of the same length.')
+
+    if len(X) < degree + 1:
+        raise ValueError(f'There must be at least {degree + 1} points to '
+                         f'determine the parameters of a degree {degree} curve. '
+                         f'Got only {len(X)} points.')
+
+    def bpoly(n, t, k):
+        """ Bernstein polynomial when a = 0 and b = 1. """
+        return t ** k * (1 - t) ** (n - k) * comb(n, k)
+        # return comb(n, i) * ( t**(n-i) ) * (1 - t)**i
+
+    def bmatrix(T):
+        """ Bernstein matrix for Bézier curves. """
+        return np.matrix([[bpoly(degree, t, k) for k in range(degree + 1)] for t in T])
+
+    def least_square_fit(points, M):
+        M_ = np.linalg.pinv(M)
+        return M_ * points
+
+    T = np.linspace(0, 1, len(X))
+    M = bmatrix(T)
+    points = np.array(list(zip(X, Y)))
+
+    final = least_square_fit(points, M).tolist()
+    final[0] = [X[0], Y[0]]
+    final[len(final) - 1] = [X[len(X) - 1], Y[len(Y) - 1]]
+    return final
+
+
+def bernstein_poly(i, n, t):
+    """
+     The Bernstein polynomial of n, i as a function of t
+    """
+    return comb(n, i) * (t ** (n - i)) * (1 - t) ** i
+
+
+def bezier_curve(points, nTimes=50):
+    """
+       Given a set of control points, return the
+       bezier curve defined by the control points.
+
+       points should be a list of lists, or list of tuples
+       such as [ [1,1],
+                 [2,3],
+                 [4,5], ..[Xn, Yn] ]
+        nTimes is the number of time steps, defaults to 1000
+
+        See http://processingjs.nihongoresources.com/bezierinfo/
+    """
+
+    nPoints = len(points)
+    xPoints = np.array([p[0] for p in points])
+    yPoints = np.array([p[1] for p in points])
+
+    t = np.linspace(0.0, 1.0, nTimes)
+
+    polynomial_array = np.array([bernstein_poly(i, nPoints - 1, t) for i in range(0, nPoints)])
+
+    xvals = np.dot(xPoints, polynomial_array)
+    yvals = np.dot(yPoints, polynomial_array)
+
+    return xvals, yvals
+
+
+
+
 
 def compute_FODR(typ_computation,only_FODR,sub_typ,n_realization,input_output,path_data,path_save,eps_list,sigma_noise,window,error,l):
     N=10000; mu=0.2
@@ -573,16 +814,7 @@ def compute_FODR(typ_computation,only_FODR,sub_typ,n_realization,input_output,pa
     epsilon=eps_list[l]
     m_val=1-epsilon
     print('epsilon=', epsilon)
-    if epsilon==1:
-        n, a, c, d= sy.symbols(['n', 'a', 'c', 'd'], real=True, imaginary=False)
-        G = ( c * n + d)
-        intgr_output = 2*(d*(c-a)*log(c*n+d)+a*c*n)/c**2
-    else:
-        n, a, b, c, d = sy.symbols(['n', 'a', 'b', 'c', 'd'], real=True, imaginary=False)
-        G = (b * n ** 2 + c * n + d)
-        intgr_output = (((a / b) * log(G )) - (((a * c - 2 * b * d) / (b * sqrt(-4 * b * d + c ** 2))) * log(
-            (sqrt(-4 * b * d + c ** 2) - (2 * b * n + c)) / (sqrt(-4 * b * d + c ** 2) + (2 * b * n + c)))))
-    expr = intgr_output - intgr_output.evalf(subs={n: 0})-log(G)
+    expr=analytical_expr(epsilon)
     for realization_count in range(n_realization):
         print('n_realization=',realization_count)
         col_names=['epsilon','sigma_noise','FODR_inf','no. points_inf','FODR','no. points','FODR_theo','no. points_theo','logh from left_inf','logh from right_inf','logh from left','logh from right','logh from left_theo','logh from right_theo',]
@@ -701,81 +933,3 @@ def compute_FODR(typ_computation,only_FODR,sub_typ,n_realization,input_output,pa
 
 
 
-from functools import partial
-import numpy as np
-import os
-import multiprocessing as mp
-
-
-plot = 1
-only_FODR = 1
-window_list = [1, 10, 100, 1000, 10000]
-window_list = [1]  # ,10,100,1000,10000]
-n_realization = 1
-# sub_typ='subFix'
-sub_typ = 'subFull'
-# sub_typ='subRandom'
-# input_output='inSub1_outSub2'
-input_output = 'inSub1_outAll'
-# input_output='inSub1_outSub3'
-path_data = 'betaParams_Oct2021/'
-
-N = 10000
-error = 0.2
-sigma_base = 1e-2
-eps_list = np.logspace(-4, 0, 9)[:1]
-# eps_list=np.logspace(-5,0,25)
-l_list = 1 - eps_list
-
-path = '6.3/'
-#os.mkdir(path)
-#os.mkdir(path +'/'+sub_typ)
-
-if 0:
-
-    typ_computation = 'simu'
-    path_to_save = path + '/' + sub_typ + '/' + typ_computation + '/'
-    #os.mkdir(path +'/'+sub_typ+'/'+typ_computation)
-    for window in window_list:
-        print('window=', window)
-        sigma_noise = sigma_base
-        funct = partial(FODR_utils.compute_FODR, typ_computation, only_FODR, sub_typ, n_realization, input_output, path_data,
-                        path_to_save, eps_list, sigma_noise, window, error)
-        pool = mp.Pool(processes=len(eps_list))
-        results = pool.map(funct, np.arange(len(eps_list)))
-        pool.close()
-        pool.join()
-
-#        with ProcessPoolExecutor() as executor:
-#            outputs = executor.map(funct, np.arange(len(eps_list)))
-if 1:
-    #eps_list = np.logspace(-5, 0, 30)
-    # l_list = 1 - eps_list
-    window = 1
-    typ_computation = 'theo'
-    path_to_save = path + '/' + sub_typ + '/' + typ_computation + '/'
-    #os.mkdir(path + '/' + sub_typ + '/' + typ_computation)
-    sigma_noise = sigma_base
-    funct = partial(compute_FODR, typ_computation, only_FODR, sub_typ, n_realization, input_output, path_data,
-                    path_to_save, eps_list, sigma_noise, window, error)
-    funct(0)
-    # pool = mp.Pool(processes=len(eps_list))
-    # results = pool.map(funct, np.arange(len(eps_list)))
-    # pool.close()
-    # pool.join()
-   # with ProcessPoolExecutor() as executor:
-   #     outputs = executor.map(funct, np.arange(len(eps_list)))
-
-if 0:
-    eps_list = np.logspace(-5, 0, 30)
-    l_list = 1 - eps_list
-    typ_computation = 'inf'
-    path_to_save = path + '/' + sub_typ + '/' + typ_computation + '/'
-    os.mkdir(path + '/' + sub_typ + '/' + typ_computation)
-    sigma_noise = sigma_base
-    funct = partial(FODR_utils.compute_FODR, typ_computation, only_FODR, sub_typ, n_realization, input_output, path_data,
-                    path_to_save, eps_list, sigma_noise, window, error)
-    pool = mp.Pool(processes=len(eps_list))
-    results = pool.map(funct, np.arange(len(eps_list)))
-    pool.close()
-    pool.join()
