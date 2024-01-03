@@ -1,7 +1,10 @@
 import numpy as np
 import scipy 
 from scipy import stats, signal, optimize
+from tqdm import tqdm
 
+# does not seem to speed up things so may not be worth it
+from numba import jit
 #TODO: unit testing?
 
 def coupling_weights(N, K, lambda_, seed):
@@ -60,6 +63,7 @@ def external_spiking_probability(N, mu, h_, seed, dt=1):
     # return 2d array where first column is selected neurons and second column is p_h
     return (id_neurons, p_h*np.ones_like(id_neurons))
 
+@jit(nopython=True)
 def transfer(x):
     """
     Linear transfer function of the neurons.
@@ -103,3 +107,88 @@ def step(x, w, p_h, rng):
         # add spikes to x (if already spiked this will remain 1)
         x[id_nonzero[id_spike]] = 1
     return x
+
+def simulation(params, steps={'burn':'self', 'equil':'self', 'record':'self'}, windows=np.array([1e-6,1e0, 1e1, 1e2, 1e3, 1e4])):
+    """
+    run simulation and return sliding window estimates
+
+    Parameters
+    ----------
+    params : dict
+        dictionary with parameters that needs to inlcude
+        - N : int
+            number of neurons
+        - K : int
+            number of incoming connections per neuron
+        - lambda : float
+            coupling strength
+        - mu : float
+            fraction of neurons that receive external input
+        - h : float
+            external input
+        - seed : int
+            random seed
+        - dt : float    
+            time step
+    steps : dict
+        dictionary with steps to run (default is self-consistently determined)
+    windows : array
+        array with windows to use for sliding window estimates
+
+    Returns
+    -------
+    windows : array
+        array with windows used for sliding window estimates
+    samples : array
+        array with sliding window estimates of length steps['record']
+    """
+    # create system
+    w = coupling_weights(params['N'], params['K'], params['lambda'], params['seed'])
+    p_h = external_spiking_probability(params['N'], params['mu'], params['h'], params['seed'])
+    tau = - params['dt'] / np.log(params['lambda'])
+    rng = np.random.RandomState(params['seed'])
+
+    # current estimate with exponential smoothing
+    alphas = 1 - np.exp(-params['dt'] / windows)
+    print(alphas)
+    def update(estimates, x):
+        estimates = (1-alphas)*estimates + alphas * np.mean(x)
+        return estimates
+    
+    window_max = np.max(windows)
+    # get self-consistent times from timecale of network dynamics determined by lambda
+    steps_burn = steps['burn']
+    if steps_burn == "self":
+        steps_burn = int(10*tau)
+        print(f'# COMMENT: burn-in steps self-consistently set to {steps_burn:.2e} = 50 * tau with tau = -dt / ln(lambda) = {tau:.2e}')
+    
+    steps_equil = steps['equil']
+    if steps_equil == "self":
+        steps_equil = int(window_max)
+        print(f'# COMMENT: equilibration steps self-consistently set to {steps_equil:.2e} = window_max = {window_max:.2e}')
+    
+    steps_record = steps['record']
+    if steps_record == "self":
+        # get self-consistent recording time from timecale of network dynamics determined by lambda
+        steps_record = int(max(1000*tau, 10*window_max))
+        print(f'# COMMENT: recording steps self-consistently set to {steps_record:.2e} = max(1000 * tau, 10*window_max) with tau = -dt / ln(lambda) = {tau:.2e} and window_max={window_max:.2e}')
+
+    # run simulation until stationary and then record mean activity; to speed up equilibration we start from random initial spiking condition
+    print(f'initialize with random spiking condition')
+    x = rng.randint(0,2,params['N'])
+    for t in tqdm(range(steps_burn), desc="burn-in dynamics"):
+        x = step(x, w, p_h, rng)
+
+    # start with the estimation that requires equilibration
+    estimates = np.ones_like(windows)*np.mean(x)  
+    for t in tqdm(range(steps_equil), desc="equilibration for running estimates"):
+        x = step(x, w, p_h, rng)
+        estimates = update(estimates, x)
+    
+    # record sliding window estimates
+    samples = np.zeros((len(windows), steps_record))
+    for t in tqdm(range(steps_record), desc="recording"):
+        x = step(x, w, p_h, rng)
+        estimates = update(estimates, x)
+        samples[:,t] = estimates
+    return windows, samples
