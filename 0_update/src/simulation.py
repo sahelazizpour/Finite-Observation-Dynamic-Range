@@ -147,7 +147,11 @@ def simulation(params, steps={'burn':'self', 'equil':'self', 'record':'self'}, w
     # create system
     w = coupling_weights(params['N'], params['K'], params['lambda'], params['seed'])
     p_h = external_spiking_probability(params['N'], params['mu'], params['h'], params['seed'])
-    tau = - params['dt'] / np.log(params['lambda'])
+    lam = params['lambda']
+    if lam > 1e-2:
+        tau = - params['dt'] / np.log(lam)
+    else: 
+        tau = 0
     rng = np.random.RandomState(params['seed'])
 
     # current estimate with exponential smoothing
@@ -162,18 +166,18 @@ def simulation(params, steps={'burn':'self', 'equil':'self', 'record':'self'}, w
     steps_burn = steps['burn']
     if steps_burn == "self":
         steps_burn = int(30*tau)
-        print(f'# COMMENT: burn-in steps self-consistently set to {steps_burn:.2e} = 50 * tau with tau = -dt / ln(lambda) = {tau:.2e}')
+        print(f'# COMMENT: burn-in steps self-consistently set to {steps_burn:.2e} = 30 * tau with tau = -dt / ln(lambda) = {tau:.2e}')
     
     steps_equil = steps['equil']
     if steps_equil == "self":
         steps_equil = int(3*window_max)
-        print(f'# COMMENT: equilibration steps self-consistently set to {steps_equil:.2e} = window_max = {window_max:.2e}')
+        print(f'# COMMENT: equilibration steps self-consistently set to {steps_equil:.2e} = 3 * window_max = {window_max:.2e}')
     
     steps_record = steps['record']
     if steps_record == "self":
         # get self-consistent recording time from timecale of network dynamics determined by lambda
         steps_record = int(max(1000*tau, 100*window_max))
-        print(f'# COMMENT: recording steps self-consistently set to {steps_record:.2e} = max(1000 * tau, 10*window_max) with tau = -dt / ln(lambda) = {tau:.2e} and window_max={window_max:.2e}')
+        print(f'# COMMENT: recording steps self-consistently set to {steps_record:.2e} = max(1000 * tau, 100*window_max) with tau = -dt / ln(lambda) = {tau:.2e} and window_max={window_max:.2e}')
 
     # run simulation until stationary and then record mean activity; to speed up equilibration we start from random initial spiking condition
     print(f'initialize with random spiking condition')

@@ -1,0 +1,9 @@
+total number of jobs: 867
+submit script with seed=1000, log(h)=-0.5, log(1-lamda)=-2.00
+start simulation
+[1.00000000e+00 6.32120559e-01 9.51625820e-02 9.95016625e-03
+ 9.99500167e-04 9.99950002e-05]
+# COMMENT: burn-in steps self-consistently set to 2.98e+03 = 30 * tau with tau = -dt / ln(lambda) = 9.95e+01
+# COMMENT: equilibration steps self-consistently set to 3.00e+04 = 3 * window_max = 1.00e+04
+# COMMENT: recording steps self-consistently set to 1.00e+06 = max(1000 * tau, 100*window_max) with tau = -dt / ln(lambda) = 9.95e+01 and window_max=1.00e+04
+initialize with random spiking condition
