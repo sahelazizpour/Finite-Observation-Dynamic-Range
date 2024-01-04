@@ -191,4 +191,39 @@ def simulation(params, steps={'burn':'self', 'equil':'self', 'record':'self'}, w
         x = step(x, w, p_h, rng)
         estimates = update(estimates, x)
         samples[:,t] = estimates
-    return windows, samples
+
+    # save result as a dictionary where windows are the keys and samples are the values
+    result = dict()
+    result['windows'] = windows
+    for (window, sample) in zip(windows, samples):
+        result[f'samples/{window}'] = sample
+    return result
+
+def save_simulation(params, result, path='./dat/'):
+    """
+        Save simulation results to file.
+
+        Parameters
+        ----------
+        params : dict
+            Dictionary with simulation parameters.
+        windows : array_like
+            Array with window sizes.
+        samples : array_like
+            Array with samples.
+        path : str, optional
+            Path to save file to. Default is '.dat/'.
+
+        Returns
+        -------
+        filename : str
+            Name of the saved file.
+    """
+    filename = f'{path}/simulation_N={params["N"]}_K={params["K"]}_lambda={params["lambda"]:.2f}_mu={params["mu"]:.2f}_h={params["h"]:.2e}_seed={params["seed"]}.h5'
+    
+    #create h5 file from dictionary
+    with h5py.File(filename, 'w') as f:
+        for key in result.keys():
+            f.create_dataset(key, data=result[key])
+
+    return filename
