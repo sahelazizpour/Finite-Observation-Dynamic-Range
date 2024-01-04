@@ -2,6 +2,8 @@ import numpy as np
 import scipy 
 from scipy import stats, signal, optimize
 from tqdm import tqdm
+import h5py
+import os
 
 # does not seem to speed up things so may not be worth it
 from numba import jit
@@ -115,7 +117,7 @@ def simulation(params, steps={'burn':'self', 'equil':'self', 'record':'self'}, w
     Parameters
     ----------
     params : dict
-        dictionary with parameters that needs to inlcude
+        dictionary with parameters that needs to include
         - N : int
             number of neurons
         - K : int
@@ -195,22 +197,22 @@ def simulation(params, steps={'burn':'self', 'equil':'self', 'record':'self'}, w
     # save result as a dictionary where windows are the keys and samples are the values
     result = dict()
     result['windows'] = windows
-    for (window, sample) in zip(windows, samples):
-        result[f'samples/{window}'] = sample
+    result['samples'] = dict(zip(windows, samples))
+    result['params'] = params
+    result['steps'] = steps
     return result
 
-def save_simulation(params, result, path='./dat/'):
+def get_filename(path, params):
+    return f'{path}/N={params["N"]}_K={params["K"]}/1-lambda={1-params["lambda"]:.2e}/simulation_mu={params["mu"]:.2f}_h={params["h"]:.2e}_seed={params["seed"]}.h5'
+
+def save_simulation(result, path='./dat/'):
     """
         Save simulation results to file.
 
         Parameters
         ----------
-        params : dict
-            Dictionary with simulation parameters.
-        windows : array_like
-            Array with window sizes.
-        samples : array_like
-            Array with samples.
+        result : dict
+            Dictionary with simulation parameters and results.
         path : str, optional
             Path to save file to. Default is '.dat/'.
 
@@ -219,11 +221,20 @@ def save_simulation(params, result, path='./dat/'):
         filename : str
             Name of the saved file.
     """
-    filename = f'{path}/simulation_N={params["N"]}_K={params["K"]}_lambda={params["lambda"]:.2f}_mu={params["mu"]:.2f}_h={params["h"]:.2e}_seed={params["seed"]}.h5'
-    
-    #create h5 file from dictionary
-    with h5py.File(filename, 'w') as f:
-        for key in result.keys():
-            f.create_dataset(key, data=result[key])
+    params = result['params']
+    filename = get_filename(path, params)
+    # create folder if it does not exist
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
 
-    return filename
+    def save_dict(f, name, dict):
+        for key in dict.keys():
+            f.create_dataset(f'{name}/{key}', data=dict[key])
+    
+    with h5py.File(filename, 'w') as f:
+        f.create_dataset('windows', data=result['windows'])
+        # save samples 
+        save_dict(f, 'samples', result['samples'])
+        # save params
+        save_dict(f, 'params', result['params'])
+        # save steps
+        save_dict(f, 'steps', result['steps'])
