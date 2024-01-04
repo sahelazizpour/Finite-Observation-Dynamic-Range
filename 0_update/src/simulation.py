@@ -161,18 +161,18 @@ def simulation(params, steps={'burn':'self', 'equil':'self', 'record':'self'}, w
     # get self-consistent times from timecale of network dynamics determined by lambda
     steps_burn = steps['burn']
     if steps_burn == "self":
-        steps_burn = int(10*tau)
+        steps_burn = int(30*tau)
         print(f'# COMMENT: burn-in steps self-consistently set to {steps_burn:.2e} = 50 * tau with tau = -dt / ln(lambda) = {tau:.2e}')
     
     steps_equil = steps['equil']
     if steps_equil == "self":
-        steps_equil = int(window_max)
+        steps_equil = int(3*window_max)
         print(f'# COMMENT: equilibration steps self-consistently set to {steps_equil:.2e} = window_max = {window_max:.2e}')
     
     steps_record = steps['record']
     if steps_record == "self":
         # get self-consistent recording time from timecale of network dynamics determined by lambda
-        steps_record = int(max(1000*tau, 10*window_max))
+        steps_record = int(max(1000*tau, 100*window_max))
         print(f'# COMMENT: recording steps self-consistently set to {steps_record:.2e} = max(1000 * tau, 10*window_max) with tau = -dt / ln(lambda) = {tau:.2e} and window_max={window_max:.2e}')
 
     # run simulation until stationary and then record mean activity; to speed up equilibration we start from random initial spiking condition
@@ -234,7 +234,8 @@ def save_simulation(result, path='./dat/'):
         f.create_dataset('windows', data=result['windows'])
         # save samples 
         save_dict(f, 'samples', result['samples'])
-        # save params
-        save_dict(f, 'params', result['params'])
         # save steps
         save_dict(f, 'steps', result['steps'])
+        # save params as attributes
+        for key in params.keys():
+            f.attrs[key] = params[key]
