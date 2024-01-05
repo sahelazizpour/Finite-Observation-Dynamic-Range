@@ -7,7 +7,7 @@ conda create -n finite-observation python=3.11
 conda activate finite-observation
 conda install -c conda-forge jax
 pip install flax
-pip install matplotlib pandas tqdm
+pip install matplotlib pandas tqdm h5py
 
 pip3 install --pre torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/nightly/cpu
 pip install scikit-learn
