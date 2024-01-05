@@ -165,8 +165,8 @@ def simulation(params, steps={'burn':'self', 'equil':'self', 'record':'self'}, w
     # get self-consistent times from timecale of network dynamics determined by lambda
     steps_burn = steps['burn']
     if steps_burn == "self":
-        steps_burn = int(30*tau)
-        print(f'# COMMENT: burn-in steps self-consistently set to {steps_burn:.2e} = 30 * tau with tau = -dt / ln(lambda) = {tau:.2e}')
+        steps_burn = int(max(30*tau,window_max))
+        print(f'# COMMENT: burn-in steps self-consistently set to {steps_burn:.2e} = max(30 * tau, window_max) with tau = -dt / ln(lambda) = {tau:.2e} and window_max={window_max:.2e}')
     
     steps_equil = steps['equil']
     if steps_equil == "self":
