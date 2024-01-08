@@ -21,4 +21,4 @@
 
 # simulation log
 log/
-0_update/src/__pycache__/
+*__pycache__/
