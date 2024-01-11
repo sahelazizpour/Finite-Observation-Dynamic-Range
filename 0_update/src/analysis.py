@@ -13,6 +13,24 @@ def fit_beta_distribution(data, delta, seed=1234):
         except:
             seed+=1
 
+def calc_overlap_beta(ab1, ab2, loc, scale):
+    """calculate the overlap between two beta distributions?"""
+    a1,b1 = ab1
+    a2,b2 = ab2
+    # calculate overlap defined as 0.5*int(min(f1,f2)) where f1 = beta(a1,b1,loc,scale) and f2 = beta(a2,b2,loc,scale)
+    # this is equivalent to 0.5*int(min(beta(a1,b1,loc,scale),beta(a2,b2,loc,scale)))
+
+    # # calculate the intersection of the two beta distributions
+    # # this is equivalent to the minimum of the two beta distributions
+    # a = np.minimum(a1,a2)
+    # b = np.minimum(b1,b2)
+    # # calculate the integral of the intersection
+    # # this is equivalent to the overlap between the two beta distributions
+    # overlap = stats.beta.cdf(1+2*delta, a, b, loc=loc, scale=scale) - stats.beta.cdf(-delta, a, b, loc=loc, scale=scale)
+    # return overlap
+    return None
+
+
 
 def calc_overlap(pmf1, pmf2):
     """
@@ -78,16 +96,20 @@ def find_discriminable_inputs(pmf, h_range, pmf_refs, epsilon:float, start="left
         elif start=="right":
             h_cur = optimize.bisect(func, h_left, h_cur)
         pmf_cur = pmf(h_cur)
+
         overlap_end = calc_overlap(pmf_end, pmf_cur)
         if verbose:
-            print("possible solution: ",h_cur, overlap_end, end=" ... ")
-        # if new overlap is smaller than epsilon, add h_cur to list and take current pmf as new reference
+            print(f"possible solution: h={h_cur} with overlap to end of {overlap_end}", end = " ... ")
+        # if overlap with pmf_end is smaller than epsilon, add h_cur to list and take current pmf as new reference
         if overlap_end < epsilon:
             hs.append(h_cur)
             pmf_ref = pmf_cur
-            print("accepted")
+            if verbose:
+                print("accepted")
         else:
-            print("rejected")
+            if verbose:
+                print("rejected")
+            break
     return hs
 
 
