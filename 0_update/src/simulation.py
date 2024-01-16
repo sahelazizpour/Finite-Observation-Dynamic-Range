@@ -4,6 +4,8 @@ from scipy import stats, signal, optimize
 from tqdm import tqdm
 import h5py
 import os
+import sqlite3
+from src.utils import *
 
 # does not seem to speed up things so may not be worth it
 from numba import jit
@@ -110,7 +112,7 @@ def step(x, w, p_h, rng):
         x[id_nonzero[id_spike]] = 1
     return x
 
-def simulation(params, steps={'burn':'self', 'equil':'self', 'record':'self'}, windows=np.array([1e-6,1e0, 1e1, 1e2, 1e3, 1e4])):
+def simulation(params, steps={'burn':'self', 'equil':'self', 'record':'self'}, windows=np.array([1e0, 1e1, 1e2, 1e3, 1e4])):
     """
     run simulation and return sliding window estimates
 
@@ -130,8 +132,6 @@ def simulation(params, steps={'burn':'self', 'equil':'self', 'record':'self'}, w
             external input
         - seed : int
             random seed
-        - dt : float    
-            time step
     steps : dict
         dictionary with steps to run (default is self-consistently determined)
     windows : array
@@ -144,18 +144,21 @@ def simulation(params, steps={'burn':'self', 'equil':'self', 'record':'self'}, w
     samples : array
         array with sliding window estimates of length steps['record']
     """
+    # timescale of simulation is in ms
+    dt = 1 #ms
+
     # create system
     w = coupling_weights(params['N'], params['K'], params['lambda'], params['seed'])
     p_h = external_spiking_probability(params['N'], params['mu'], params['h'], params['seed'])
     lam = params['lambda']
     if lam > 1e-2:
-        tau = - params['dt'] / np.log(lam)
+        tau = - dt/ np.log(lam)
     else: 
         tau = 0
     rng = np.random.RandomState(params['seed'])
 
     # current estimate with exponential smoothing
-    alphas = 1 - np.exp(-params['dt'] / windows)
+    alphas = 1 - np.exp(-dt / windows)
     print(alphas)
     def update(estimates, x):
         estimates = (1-alphas)*estimates + alphas * np.mean(x)
@@ -209,7 +212,7 @@ def simulation(params, steps={'burn':'self', 'equil':'self', 'record':'self'}, w
 def get_filename(path, params):
     return f'{path}/N={params["N"]}_K={params["K"]}/1-lambda={1-params["lambda"]:.2e}/simulation_mu={params["mu"]:.2f}_h={params["h"]:.2e}_seed={params["seed"]}.h5'
 
-def save_simulation(result, path='./dat/'):
+def save_simulation(result, path='./dat/', database='./simulations.db'):
     """
         Save simulation results to file.
 
@@ -236,10 +239,20 @@ def save_simulation(result, path='./dat/'):
     
     with h5py.File(filename, 'w') as f:
         f.create_dataset('windows', data=result['windows'])
-        # save samples 
+        # save samples (measurements)
         save_dict(f, 'samples', result['samples'])
-        # save steps
+        # save steps (burn, equil, record)
         save_dict(f, 'steps', result['steps'])
         # save params as attributes
         for key in params.keys():
             f.attrs[key] = params[key]
+
+    # add one entry per window
+    con = sqlite3.connect(database)
+    cur = con.cursor()
+    params['raw_file'] = filename
+    for window in result['windows']:
+        params['window'] = window
+        params['dataset'] = f'samples/{window}'
+        insert_from_dict(con, cur, 'simulations', params)
+    
