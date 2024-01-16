@@ -15,5 +15,5 @@ pip install scikit-learn
 pip install numba
 pip install dask?
 
-# to activate git filters that allow keeping database in repository without repository to blow up
-git config --local include.path .gitconfig 
+# if database result is to be put into repository do this by dumping the sqlite file with
+sqlite3 file.db .dump > db_file.txt
