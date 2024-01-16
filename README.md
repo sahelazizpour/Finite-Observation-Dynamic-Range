@@ -14,3 +14,6 @@ pip install scikit-learn
 
 pip install numba
 pip install dask?
+
+# to activate git filters that allow keeping database in repository without repository to blow up
+git config --local include.path .gitconfig 
