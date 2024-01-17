@@ -210,7 +210,7 @@ def simulation(params, steps={'burn':'self', 'equil':'self', 'record':'self'}, w
     return result
 
 def get_filename(path, params):
-    return f'{path}/N={params["N"]}_K={params["K"]}/1-lambda={1-params["lambda"]:.2e}/simulation_mu={params["mu"]:.2f}_h={params["h"]:.2e}_seed={params["seed"]}.h5'
+    return f'{path}/seed={params["seed"]}/N={params["N"]}_K={params["K"]}/1-lambda={1-params["lambda"]:.2e}/simulation_mu={params["mu"]:.2f}_h={params["h"]:.2e}.h5'
 
 def save_simulation(result, path='./dat/', database='./simulations.db'):
     """
@@ -250,9 +250,11 @@ def save_simulation(result, path='./dat/', database='./simulations.db'):
     # add one entry per window
     con = sqlite3.connect(database)
     cur = con.cursor()
-    params['raw_file'] = filename
+    # create new dictionary where we only keep parameters relevant for database (N,K,lambda,mu,h,seed)
+    params_db = {key: params[key] for key in ['N','K','lambda','mu','h','seed']}
+    params_db['raw_file'] = filename
     for window in result['windows']:
-        params['window'] = window
-        params['dataset'] = f'samples/{window}'
-        insert_from_dict(con, cur, 'simulations', params)
+        params_db['window'] = window
+        params_db['dataset'] = f'samples/{window}'
+        insert_into_database(con, cur, 'simulations', params_db)
     
