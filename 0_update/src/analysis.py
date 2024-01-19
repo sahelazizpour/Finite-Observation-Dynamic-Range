@@ -1,18 +1,6 @@
 import numpy as np
 from scipy import stats, signal, optimize
 
-def fit_beta_distribution(data, delta, seed=1234):
-    for i in range(10):
-        try:
-            np.random.seed(seed)
-            # add very small jitter to avoid problems with delta distributions
-            data = data + np.random.randn(len(data))*delta/7
-            # IMPORTANT: The beta distribution is defined on the interval [0,1] but because of the discretization we need to shift the support by delta and scale it by 1+2*delta
-            a,b,loc,scale = stats.beta.fit(data, floc=-delta, fscale=1+2*delta) 
-            return a,b,loc,scale
-        except:
-            seed+=1
-
 def calc_overlap_beta(ab1, ab2, loc, scale):
     """calculate the overlap between two beta distributions?"""
     a1,b1 = ab1
@@ -30,8 +18,6 @@ def calc_overlap_beta(ab1, ab2, loc, scale):
     # return overlap
     return None
 
-
-
 def calc_overlap(pmf1, pmf2):
     """
     calculates the overlap between two discrete probability mass functions
@@ -39,7 +25,6 @@ def calc_overlap(pmf1, pmf2):
     """
     assert len(pmf1) == len(pmf2)
     return np.sum(np.minimum(pmf1, pmf2)) * 0.5
-
 
 def find_discriminable_inputs(pmf, h_range, pmf_refs, epsilon:float, start="left", verbose=False):
     """
@@ -111,7 +96,6 @@ def find_discriminable_inputs(pmf, h_range, pmf_refs, epsilon:float, start="left
                 print("rejected")
             break
     return hs
-
 
 def dynamic_range(h_range):
     """
