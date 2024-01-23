@@ -26,6 +26,14 @@ def __main__(args):
         'h': 10**args.log10_h,
         'seed': args.seed,
     }
+    #check first if simulation parameters are not already in database (TODO, not clear how to marry this with the windows!)
+    # con = sqlite3.connect(args.database)
+    # cur = con.cursor()
+    # cur.execute(f"SELECT * FROM simulations WHERE (N,K,lambda,mu,h,seed) VALUES (?,?,?,?,?,?)", list(params.values()))
+    if len(cur.fetchall()) > 0:
+        print('simulation already exists in database')
+        return
+
     print('start simulation')
     result = simulation(params)
     save_simulation(result, args.path, args.database)
