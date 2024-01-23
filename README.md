@@ -2,6 +2,9 @@
 
 Simulation and analysis code in order to assess the impact of finite observation times on the concept of dynamics range.
 
+## Future Idea:
+Train neural network as a non-parametric approximation (avoid going via beta distribution)
+
 ## Installation
 conda create -n finite-observation python=3.11
 conda activate finite-observation

@@ -119,6 +119,8 @@ class FunctionApproximation:
         self.map_input = [lambda x: x for i in range(self.input_dim)]
         self.map_output = [lambda x: x for i in range(self.output_dim)]
         self.map_output_inv = [lambda x: x for i in range(self.output_dim)]
+        # ranges for input that the model is trained on (initialize with None)
+        self.input_range = [(None, None) for i in range(self.input_dim)]
 
         if "model" in kwargs:
             self.model = kwargs["model"]
@@ -157,7 +159,7 @@ class FunctionApproximation:
         elif label in self.output_names:
             i = self.output_names.index(label)
             self.map_output[i] = func
-    
+
     def set_map_from_NN(self, label, func):
         """
         Specifies a mapping for parameter `name` from either input or output to the NN.
@@ -168,7 +170,6 @@ class FunctionApproximation:
             self.map_output_inv[i] = func
         elif label in self.input_names:
             raise ValueError("Inverse mapping only required for output variables!")
-
 
     def train(self, dataframe, epochs=1000, lr=0.001):
         """
@@ -188,6 +189,10 @@ class FunctionApproximation:
         # extract training data from dataframe into numpy arrays
         Xs = dataframe[self.input_names].values
         Ys = dataframe[self.output_names].values
+
+        # specify input ranges used for training
+        for i in range(self.input_dim):
+            self.input_range[i] = (np.min(Xs[:, i]), np.max(Xs[:, i]))
 
         # map inputs and outputs so that data is equidistant
         # (e.g. into logspace if data comes from a log-normal distribution)
@@ -257,10 +262,10 @@ class FunctionApproximation:
         data["X_scaler"] = self.X_scaler
         data["Y_scaler"] = self.Y_scaler
         data["model"] = self.model
-        
-        with open(filename, "wb") as f:
-            pickle.dump(data, f)    
+        data["input_range"] = self.input_range
 
+        with open(filename, "wb") as f:
+            pickle.dump(data, f)
 
     def load(self, filename):
         """
@@ -279,6 +284,7 @@ class FunctionApproximation:
         self.X_scaler = data["X_scaler"]
         self.Y_scaler = data["Y_scaler"]
         self.model = data["model"]
+        self.input_range = data["input_range"]
         self.model.train(False)
 
     def __call__(self, *x):
@@ -324,3 +330,159 @@ class FunctionApproximation:
                 y[i] = y[i][0]
 
         return tuple(y)
+
+
+# Third step of approximation: Use approximation in analysis
+##################
+import sqlite3
+from src.utils import *
+from src.analysis import *
+from src.theory import *
+from dask.distributed import Client, LocalCluster, as_completed
+
+
+def analysis_beta_approximation(
+    params, list_lambda, database, verbose=False, redo=False
+):
+    """
+    Uses beta_interpolation based on simulation results from `database` to estimate the number of discriminable intervals and dynamic range for the given parameters `params`
+    Stores result in `path_out`
+    Function parallelizes by splitting up different lamda values into different processes
+
+    Parameters
+    ----------
+    params : dict
+        Dictionary with simulation parameters.
+    database : str
+        Path to database.
+    """
+    # get relevant information from database
+    import sqlite3
+
+    con = sqlite3.connect(database)
+    cur = con.cursor()
+
+    if exists_in_database(con, cur, "results", params) & (not redo):
+        raise ValueError(f"Results already in database for params")
+
+    # load function approximation from database
+    beta_interpolation = pd.read_sql_query(
+        f"SELECT * FROM beta_interpolations WHERE N={params['N']} AND K={params['K']} AND mu={params['mu']} AND seed={params['seed']}",
+        con,
+    )
+    # check that there is a unique function approximation
+    if not len(beta_interpolation) == 1:
+        raise ValueError(
+            f"No unique function approximation in database for params (either 0 or multiple entries)"
+        )
+    if verbose:
+        print(
+            f"Load beta interpolation from file: {beta_interpolation['filename'].values[0]}"
+        )
+    beta_approx = FunctionApproximation(
+        filename=beta_interpolation["filename"].values[0]
+    )
+    con.close()
+
+    # define pmf from convolution of beta distribution with Gaussian noise
+    delta = 1 / beta_approx.params["N"]
+    support = np.arange(0, 1 + 4 * params["sigma"], delta)
+    support = np.concatenate((-support[::-1], support[1:]))
+    loc = beta_approx.params["loc"]
+    scale = beta_approx.params["scale"]
+
+    def ml_pmf(window, lam, h, verbose=False):
+        a, b = beta_approx(lam, window, h)
+        # pmf as difference of cdf to ensure that the pmf is normalized
+        pmf_beta = np.diff(stats.beta.cdf(support, a, b, loc=loc, scale=scale))
+        # convolution with a Gaussian distribution at every point of the support
+        pmf_norm = stats.norm.pdf(support, 0, params["sigma"]) * delta
+        return np.convolve(pmf_beta, pmf_norm, mode="same")
+
+    # parallel processing of different lambda values and store results in dataframe
+    df = pd.DataFrame(columns=["lambda", "number_discriminable", "dynamic_range"])
+
+    # specify h_range (math the range function is trained on)
+    h_range = beta_approx.input_range[beta_approx.input_names.index("h")]
+    if verbose:
+        print(f"Using h_range = {h_range}")
+
+    # define function for dask
+    def analyse(lam):
+        """
+        return lambda, number of discriminable intervals, dynamic range
+        """
+
+        def pmf_o_given_h(h):
+            return ml_pmf(params["window"], lam, h)
+
+        activity_left = mean_field_activity(lam, params["mu"], 0)
+        pmf_ref_left =  stats.norm.pdf(support, activity_left, params["sigma"]) * delta
+        activity_right = mean_field_activity(lam, params["mu"], 1e3)
+        pmf_ref_right = stats.norm.pdf(support, activity_right, params["sigma"]) * delta
+        pmf_refs = [pmf_ref_left, pmf_ref_right]
+
+        hs_left = find_discriminable_inputs(
+            pmf_o_given_h, h_range, pmf_refs, params["epsilon"]
+        )
+        hs_right = find_discriminable_inputs(
+            pmf_o_given_h,
+            h_range,
+            pmf_refs,
+            params["epsilon"],
+            start="right",
+        )
+        if len(hs_left) > 0 and len(hs_right) > 0:
+            return (
+                lam,
+                0.5 * (len(hs_left) + len(hs_right)),
+                dynamic_range((hs_left[0], hs_right[0])),
+            )
+        else:
+            return lam, np.nan, np.nan
+
+    # execute independent lambda computations in parallel with dask
+    cluster = LocalCluster()
+    dask_client = Client(cluster)
+
+    futures = dask_client.map(analyse, list_lambda)
+
+    # run analysis
+    data = []
+    for future in tqdm(as_completed(futures), total=len(list_lambda)):
+        data.append(future.result())
+
+    # sort data by first column
+    data = np.array(sorted(data, key=lambda x: x[0]))
+
+    # return dictionary of results
+    return {
+        "params": params,
+        "data": data,
+    }
+
+
+def save_analysis_beta_approximation(
+    result, path="./dat/", database="./simulations.db"
+):
+    params = result["params"]
+    # write results to file and database
+    # save dataframe to ASCI files (tab-separated)
+    filename = f"{path}/N={params['N']}_K={params['K']}_mu={params['mu']}/results_simulation_seed={params['seed']}_window={params['window']}_sigma={params['sigma']}_epsilon={params['epsilon']}.txt"
+    # create directory if it does not exist
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
+    # save data to file
+    result["data"].savetxt(
+        filename,
+        data,
+        delimiter="\t",
+        header="#lambda\tnumber of discriminable inputs\tdynamic_range",
+        comments="",
+    )
+    params["filename"] = filename
+
+    # store in database
+    con = sqlite3.connect(database)
+    cur = con.cursor()
+    insert_into_database(con, cur, "results", params)
+    con.close()
