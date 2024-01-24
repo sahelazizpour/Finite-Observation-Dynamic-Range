@@ -171,18 +171,19 @@ class FunctionApproximation:
         elif label in self.input_names:
             raise ValueError("Inverse mapping only required for output variables!")
 
-    def train(self, dataframe, epochs=1000, lr=0.001):
+    def train(self, dataframe, epochs=1000, lr=0.001, device=None):
         """
         Trains the neural network.
         """
         # select suitable device for training
-        device = torch.device(
-            "cuda"
-            if torch.cuda.is_available()
-            else "mps"
-            if torch.backends.mps.is_available()
-            else "cpu"
-        )
+        if device is None:
+            device = torch.device(
+                "cuda"
+                if torch.cuda.is_available()
+                else "mps"
+                if torch.backends.mps.is_available()
+                else "cpu"
+            )
         if self.verbose:
             print("Device for training: {}".format(device))
 
@@ -206,8 +207,9 @@ class FunctionApproximation:
         Ys = self.Y_scaler.fit_transform(Ys)
 
         # convert to torch tensors
-        X_tensor = torch.from_numpy(Xs).float()
-        Y_tensor = torch.from_numpy(Ys).float()
+        X_tensor = torch.from_numpy(Xs).float().to(device)
+        Y_tensor = torch.from_numpy(Ys).float().to(device)
+        model_ = self.model.to(device)
         if self.verbose:
             print(
                 f"Training data with input shape {X_tensor.shape} and output shape {Y_tensor.shape}."
@@ -221,7 +223,7 @@ class FunctionApproximation:
         history_loss = []
         for epoch in tqdm(range(epochs), desc="Training"):
             # permutation = torch.randperm(len(self.data))
-            Y_pred = self.model(X_tensor)
+            Y_pred = model_(X_tensor)
             loss = loss_fn(Y_pred, Y_tensor)
             history_loss.append(loss.item())
             # compute gradients
@@ -231,6 +233,7 @@ class FunctionApproximation:
             # zero the parameter gradients
             optimizer.zero_grad()
 
+        self.model = model_.to("cpu")
         self.model.train(False)
         if self.verbose:
             print(
