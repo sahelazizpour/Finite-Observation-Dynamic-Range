@@ -9,7 +9,7 @@ parser.add_argument("--mu", type=float, default=0.2)
 parser.add_argument("--seed", type=int, required=True)
 parser.add_argument("--epsilon", type=float, default=0.1)
 parser.add_argument("--sigma", type=float, default=0.01)
-parser.add_argument("--window", type=int, required=True)
+parser.add_argument("--window", type=float, required=True)
 parser.add_argument("--database", type=str, required=True)
 parser.add_argument("--path", type=str, required=True)
 args = parser.parse_args()
@@ -47,9 +47,8 @@ def __main__(args):
     list_lambda = 1 - 10 ** np.linspace(0, -4, 32 + 1)
 
     # this runs in parallel
-    result = analysis(params_results, list_lambda, args.database)
+    result = analysis_beta_approximation(params_results, list_lambda, args.database)
     save_analysis_beta_approximation(result, args.path, args.database)
-
 
 if __name__ == "__main__":
     __main__(args)
