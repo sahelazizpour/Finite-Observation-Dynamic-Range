@@ -216,13 +216,11 @@ class FunctionApproximation:
             )
 
         # Adam and MSE Loss
-        optimizer = optim.Adam(self.model.parameters(), lr=0.005)
+        optimizer = optim.Adam(self.model.parameters(), lr=lr)
         loss_fn = nn.MSELoss(reduction="mean")
 
-        # TODO in each epoch make a random sample of the data?
         history_loss = []
         for epoch in tqdm(range(epochs), desc="Training"):
-            # permutation = torch.randperm(len(self.data))
             Y_pred = model_(X_tensor)
             loss = loss_fn(Y_pred, Y_tensor)
             history_loss.append(loss.item())
