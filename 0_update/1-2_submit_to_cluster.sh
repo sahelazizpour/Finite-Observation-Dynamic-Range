@@ -7,19 +7,19 @@
 #$ -cwd
 #$ -o /scratch02.local/johannes/projects/sahel_finite-observation-dynamic-range/log/
 #$ -e /scratch02.local/johannes/projects/sahel_finite-observation-dynamic-range/log/
-##$ -t 1-527
-#$ -t 1-68
+#$ -t 1-595
+
 
 conda activate finite-observation
 exe="/data.nst/johannes/projects/sahel_finite-observation-dynamic-range/0_update/1_run_simulation.py"
 file_db="/data.nst/johannes/projects/sahel_finite-observation-dynamic-range/0_update/simulations.db"
 
-seed=1001
+seed=1000
 
 #bash equivalent to numpys hs=np.logspace(-4, 1, 101) going from 1e-4 to 10
 
-#loghs=($(seq -6.5 0.25 1))
-loghs=($(seq 1.25 0.25 2))
+loghs=($(seq -6.5 0.25 2))
+#loghs=($(seq 1.25 0.25 2))#$ -t 1-68
 numhs=${#loghs[@]}
 loges=($(seq 0 -0.25 -4))
 numes=${#loges[@]}
