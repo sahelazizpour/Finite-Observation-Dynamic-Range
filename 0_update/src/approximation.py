@@ -54,6 +54,8 @@ class DenseNN(nn.Module):
         super().__init__()
         # create activation function
         self.act = act
+        self.input_size = input_size
+        self.output_size = output_size
         # create layers
         self.hidden = nn.ModuleList([nn.Linear(input_size, hidden_sizes[0])])
         for i in range(1, len(hidden_sizes)):
@@ -124,6 +126,8 @@ class FunctionApproximation:
 
         if "model" in kwargs:
             self.model = kwargs["model"]
+            assert self.model.input_size == self.input_dim
+            assert self.model.output_size == self.output_dim
         else:
             if self.verbose:
                 print(
@@ -170,8 +174,8 @@ class FunctionApproximation:
             self.map_output_inv[i] = func
         elif label in self.input_names:
             raise ValueError("Inverse mapping only required for output variables!")
-
-    def train(self, dataframe, epochs=1000, lr=0.001, device=None):
+        
+    def train(self, dataframe, custom_loss=None, epochs=1000, lr=0.001, device=None):
         """
         Trains the neural network.
         """
@@ -218,21 +222,22 @@ class FunctionApproximation:
         # Adam and MSE Loss
         optimizer = optim.Adam(self.model.parameters(), lr=0.005)
         loss_fn = nn.MSELoss(reduction="mean")
+        if custom_loss is None:
+            custom_loss = lambda Y_pred, Y, X: loss_fn(Y_pred, Y)
 
-        # TODO in each epoch make a random sample of the data?
         history_loss = []
         for epoch in tqdm(range(epochs), desc="Training"):
-            # permutation = torch.randperm(len(self.data))
+            # forward pass
             Y_pred = model_(X_tensor)
-            loss = loss_fn(Y_pred, Y_tensor)
-            history_loss.append(loss.item())
+            loss = custom_loss(Y_pred, Y_tensor, X_tensor)
             # compute gradients
             loss.backward()
             # update parameters
             optimizer.step()
             # zero the parameter gradients
             optimizer.zero_grad()
-
+            # for logging
+            history_loss.append(loss.item())
         self.model = model_.to("cpu")
         self.model.train(False)
         if self.verbose:
@@ -419,10 +424,12 @@ def analysis_beta_approximation(
         def pmf_o_given_h(h):
             return ml_pmf(params["window"], lam, h)
 
-        activity_left = mean_field_activity(lam, params["mu"], 0)
-        pmf_ref_left =  stats.norm.pdf(support, activity_left, params["sigma"]) * delta
-        activity_right = mean_field_activity(lam, params["mu"], 1e3)
-        pmf_ref_right = stats.norm.pdf(support, activity_right, params["sigma"]) * delta
+        # activity_left = mean_field_activity(lam, params["mu"], 0)
+        # pmf_ref_left =  stats.norm.pdf(support, activity_left, params["sigma"]) * delta
+        # activity_right = mean_field_activity(lam, params["mu"], 1e3)
+        # pmf_ref_right = stats.norm.pdf(support, activity_right, params["sigma"]) * delta
+        pmf_ref_left = pmf_o_given_h(h_range[0])
+        pmf_ref_right = pmf_o_given_h(h_range[-1])
         pmf_refs = [pmf_ref_left, pmf_ref_right]
 
         hs_left = find_discriminable_inputs(
@@ -475,9 +482,9 @@ def save_analysis_beta_approximation(
     # create directory if it does not exist
     os.makedirs(os.path.dirname(filename), exist_ok=True)
     # save data to file
-    result["data"].savetxt(
+    np.savetxt(
         filename,
-        data,
+        result["data"],
         delimiter="\t",
         header="#lambda\tnumber of discriminable inputs\tdynamic_range",
         comments="",

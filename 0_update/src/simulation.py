@@ -237,7 +237,6 @@ def save_simulation(result, path='./dat/', database='./simulations.db'):
         for key in dict.keys():
             f.create_dataset(f'{name}/{key}', data=dict[key])
     
-    # TODO: does this work?
     with h5py.File(filename, 'w') as f:
         f.create_dataset('windows', data=result['windows'])
         # save samples (measurements)
