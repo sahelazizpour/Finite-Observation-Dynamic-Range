@@ -175,22 +175,9 @@ class FunctionApproximation:
         elif label in self.input_names:
             raise ValueError("Inverse mapping only required for output variables!")
         
-    def train(self, dataframe, custom_loss=None, epochs=1000, lr=0.001, device=None):
-        """
-        Trains the neural network.
-        """
-        # select suitable device for training
-        if device is None:
-            device = torch.device(
-                "cuda"
-                if torch.cuda.is_available()
-                else "mps"
-                if torch.backends.mps.is_available()
-                else "cpu"
-            )
-        if self.verbose:
-            print("Device for training: {}".format(device))
-
+    def prepare_data(self, dataframe):
+        assert self.model.training
+        
         # extract training data from dataframe into numpy arrays
         Xs = dataframe[self.input_names].values
         Ys = dataframe[self.output_names].values
@@ -209,6 +196,24 @@ class FunctionApproximation:
         # rescale data into [-1,1] range (this restricts the fit to the range of the training data!!)
         Xs = self.X_scaler.fit_transform(Xs)
         Ys = self.Y_scaler.fit_transform(Ys)
+
+        return Xs, Ys
+
+    def train(self, Xs, Ys, custom_loss=None, epochs=1000, lr=0.001, device=None):
+        """
+        Trains the neural network.
+        """
+        # select suitable device for training
+        if device is None:
+            device = torch.device(
+                "cuda"
+                if torch.cuda.is_available()
+                else "mps"
+                if torch.backends.mps.is_available()
+                else "cpu"
+            )
+        if self.verbose:
+            print("Device for training: {}".format(device))
 
         # convert to torch tensors
         X_tensor = torch.from_numpy(Xs).float().to(device)
@@ -238,7 +243,12 @@ class FunctionApproximation:
             optimizer.zero_grad()
             # for logging
             history_loss.append(loss.item())
+        # fetch model from device
         self.model = model_.to("cpu")
+        # get data from device (does this free memory on the device?)
+        Xs = X_tensor.to("cpu").detach().numpy()
+        Ys = Y_tensor.to("cpu").detach().numpy()
+        # set training to false to enter evaluation mode
         self.model.train(False)
         if self.verbose:
             print(
