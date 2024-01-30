@@ -41,8 +41,6 @@ def insert_into_database(con, cur, table, params):
         sql=f"INSERT INTO {table} ({','.join(params.keys())}) VALUES ({','.join(['?']*len(params.keys()))})"
         # values are passed when executing the command
         cur.execute(sql, list(params.values()))
-        # commit the changes
-        con.commit()
     except Exception as e:
         print(e)
 

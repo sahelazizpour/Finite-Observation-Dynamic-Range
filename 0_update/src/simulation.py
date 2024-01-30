@@ -257,5 +257,7 @@ def save_simulation(result, path='./dat/', database='./simulations.db'):
         params_db['window'] = window
         params_db['dataset'] = f'samples/{window}'
         insert_into_database(con, cur, 'simulations', params_db)
+    # commit the changes
+    con.commit()
     con.close()
     

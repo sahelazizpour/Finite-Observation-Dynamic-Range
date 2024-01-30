@@ -36,7 +36,6 @@ def __main__(args):
 
     print('start simulation')
     result = simulation(params)
-    # TODO: save also distributions!na
     save_simulation(result, args.path, args.database)
 
 if __name__ == '__main__':

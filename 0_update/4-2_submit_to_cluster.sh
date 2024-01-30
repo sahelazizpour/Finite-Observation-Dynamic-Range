@@ -7,16 +7,16 @@
 #$ -cwd
 #$ -o /data.nst/johannes/projects/sahel_finite-observation-dynamic-range/0_update/logs/
 #$ -e /data.nst/johannes/projects/sahel_finite-observation-dynamic-range/0_update/logs/
-#$ -t 1-6
+#$ -t 1-5
 
 conda activate finite-observation
 exe="/data.nst/johannes/projects/sahel_finite-observation-dynamic-range/0_update/4_run_analysis_simulation.py"
 file_db="/data.nst/johannes/projects/sahel_finite-observation-dynamic-range/0_update/simulations.db"
 
-windows=(1e-6 1 10 100 1000 10000)
+windows=(1 10 100 1000 10000)
 window=${windows[$SGE_TASK_ID-1]}
 
-seed=1001
+seed=1000
 
 echo "submit script with seed=$seed, window=$window"
 

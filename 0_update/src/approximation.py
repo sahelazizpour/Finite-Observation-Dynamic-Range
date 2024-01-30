@@ -199,7 +199,7 @@ class FunctionApproximation:
 
         return Xs, Ys
 
-    def train(self, Xs, Ys, custom_loss=None, epochs=1000, lr=0.001, device=None):
+    def train(self, Xs, Ys, custom_loss=None, epochs=1000, lr=0.005, device=None):
         """
         Trains the neural network.
         """
