@@ -488,7 +488,7 @@ def save_analysis_beta_approximation(
     params = result["params"]
     # write results to file and database
     # save dataframe to ASCI files (tab-separated)
-    filename = f"{path}/N={params['N']}_K={params['K']}_mu={params['mu']}/results_simulation_seed={params['seed']}_window={params['window']}_sigma={params['sigma']}_epsilon={params['epsilon']}.txt"
+    filename = f"{path}/sigma={params['sigma']}_epsilon={params['epsilon']}/N={params['N']}_K={params['K']}_mu={params['mu']}/results_simulation_seed={params['seed']}_window={params['window']}.txt"
     # create directory if it does not exist
     os.makedirs(os.path.dirname(filename), exist_ok=True)
     # save data to file
@@ -505,4 +505,5 @@ def save_analysis_beta_approximation(
     con = sqlite3.connect(database)
     cur = con.cursor()
     insert_into_database(con, cur, "results", params)
+    con.commit()
     con.close()

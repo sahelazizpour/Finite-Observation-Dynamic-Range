@@ -16,7 +16,7 @@ file_db="/data.nst/johannes/projects/sahel_finite-observation-dynamic-range/0_up
 windows=(1 10 100 1000 10000)
 window=${windows[$SGE_TASK_ID-1]}
 
-seed=1000
+seed=1005
 
 echo "submit script with seed=$seed, window=$window"
 
