@@ -212,7 +212,7 @@ def simulation(params, steps={'burn':'self', 'equil':'self', 'record':'self'}, w
 def get_filename(path, params):
     return f'{path}/N={params["N"]}_K={params["K"]}/seed={params["seed"]}/1-lambda={1-params["lambda"]:.2e}/simulation_mu={params["mu"]:.2f}_h={params["h"]:.2e}.h5'
 
-def save_simulation(result, path='./dat/', database='./simulations.db'):
+def save_simulation(result, path='./dat/', database='./simulations.db', verbose=False):
     """
         Save simulation results to file.
 
@@ -235,7 +235,8 @@ def save_simulation(result, path='./dat/', database='./simulations.db'):
 
     def save_dict(f, name, dict):
         for key in dict.keys():
-            print(f'hdf5 saving {name}/{key}')
+            if verbose:
+                print(f'hdf5 saving {name}/{key}')
             f.create_dataset(f'{name}/{key}', data=dict[key])
     
     with h5py.File(filename, 'w') as f:
@@ -255,7 +256,8 @@ def save_simulation(result, path='./dat/', database='./simulations.db'):
     params_db = {key: params[key] for key in ['N','K','lambda','mu','h','seed']}
     params_db['raw_file'] = filename
     for window in result['windows']:
-        print(f'sqlite3 saving {window}')
+        if verbose:
+            print(f'sqlite3 saving {window}')
         params_db['window'] = window
         params_db['dataset'] = f'samples/{window}'
         insert_into_database(con, cur, 'simulations', params_db)
