@@ -13,7 +13,7 @@ conda activate finite-observation
 exe="/data.nst/johannes/projects/sahel_finite-observation-dynamic-range/0_update/1_run_simulation.py"
 file_db="/data.nst/johannes/projects/sahel_finite-observation-dynamic-range/0_update/simulations.db"
 
-seed=1006
+seed=1009
 
 #bash equivalent to numpys hs=np.logspace(-4, 1, 101) going from 1e-4 to 10
 

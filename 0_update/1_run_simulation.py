@@ -36,7 +36,7 @@ def __main__(args):
 
     print('start simulation')
     result = simulation(params)
-    save_simulation(result, args.path, args.database)
+    save_simulation(result, args.path, args.database, verbose=True)
 
 if __name__ == '__main__':
     __main__(args)
