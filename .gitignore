@@ -20,6 +20,5 @@
 .DS_Store
 
 # simulation log
-log/
-*__pycache__/
-0_update/dat/*
+*/log*/*
+*__pycache__/ 
