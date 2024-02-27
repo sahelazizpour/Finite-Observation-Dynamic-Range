@@ -24,7 +24,7 @@ seed=1009
 
 echo "submit script with seed=$seed, window=$window"
 
-path='/data.nst/johannes/projects/sahel_finite-observation-dynamic-range/0_update/dat/'
+path='./dat'
 mkdir -p $path
 
 python $exe --window $window --seed $seed --path $path --database $file_db
