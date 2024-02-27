@@ -9,7 +9,6 @@ from src.utils import *
 
 # does not seem to speed up things so may not be worth it
 from numba import jit
-#TODO: unit testing?
 
 def coupling_weights(N, K, lambda_, seed):
     """
