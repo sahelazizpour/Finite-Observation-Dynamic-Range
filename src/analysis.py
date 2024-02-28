@@ -77,12 +77,20 @@ def find_discriminable_inputs(pmf, h_range, pmf_refs, epsilon:float, start="left
             return calc_overlap(pmf_ref, pmf(h)) - epsilon
 
         if start == "left":
+            if func(h_cur) * func(h_right) > 0:
+                if verbose:
+                    print(f"no further solution possible in range [{h_cur},{h_right}]")
+                break
             h_cur = optimize.bisect(func, h_cur, h_right)
         elif start=="right":
+            if func(h_cur) * func(h_left) > 0:
+                if verbose:
+                    print(f"no further solution possible in range [{h_left},{h_cur}]")
+                break
             h_cur = optimize.bisect(func, h_left, h_cur)
         pmf_cur = pmf(h_cur)
 
-        overlap_end = calc_overlap(pmf_end, pmf_cur)
+        overlap_end = calc_overlap(pmf_cur, pmf_end)
         if verbose:
             print(f"possible solution: h={h_cur} with overlap to end of {overlap_end}", end = " ... ")
         # if overlap with pmf_end is smaller than epsilon, add h_cur to list and take current pmf as new reference

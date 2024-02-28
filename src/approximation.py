@@ -381,7 +381,10 @@ def analysis_beta_approximation(
     cur = con.cursor()
 
     if exists_in_database(con, cur, "results", params) & (not redo):
-        raise ValueError(f"Results already in database for params")
+        # warning if results already exist and return what is in database
+        if verbose:
+            print(f"Results already in database for params; load from database.")
+        return load_analysis_beta_approximation(params, database=database)
 
     # load function approximation from database
     beta_interpolation = pd.read_sql_query(
@@ -507,3 +510,18 @@ def save_analysis_beta_approximation(
     insert_into_database(con, cur, "results", params)
     con.commit()
     con.close()
+
+def load_analysis_beta_approximation(
+    params, path="./dat/", database="./simulations.db"    
+):
+    con = sqlite3.connect(database)
+    cur = con.cursor()
+    filename = fetch_from_database(con, cur, "results", params)[-1][-1]
+    con.close()
+    print(filename)
+    data = np.loadtxt(filename, delimiter="\t", skiprows=1)
+    
+    return {
+        "params": params,
+        "data": data,
+    }

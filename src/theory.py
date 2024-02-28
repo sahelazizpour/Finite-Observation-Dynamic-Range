@@ -8,23 +8,44 @@ def mean_field_activity(lam, mu, h, dt=1):
 # second part: Mean-field solution for T->0
 ##################
 import scipy
+
 def fp_solution(support, f, g):
     """
     Numerically compute the solution to the Fokker-Planck equation for the given f and g
-    """
-    def integrand(x):
-        return f(x) / g(x)
 
-    exponent = lambda x: 2 * scipy.integrate.quad(integrand, 0, x)[0]
-    exponent = np.vectorize(exponent)
-    log_pmf = exponent(support) - np.log(g(support))
+    The integral is computed as sum over the support for two reasons: 
+    1) to ensure a self-consistent formulation
+    2) to speed up the evaluation
+
+    Parameters
+    ----------
+    support : array-like
+        Support of the pmf
+    f : function
+        drift term of the Fokker-Planck equation
+    g : function
+        diffusion term of the Fokker-Planck equation
+
+    Returns
+    -------
+    pmf : array-like
+        Probability mass function of the Fokker-Planck equation
+    """
+    # exponent = lambda x: 2 * scipy.integrate.quad(lambda x_: f(x_)/g(x_), 0, x)[0]
+    # exponent = np.vectorize(exponent)
+    # log_pmf = exponent(support) - np.log(g(support))
+    
+    # first test with discrete sum is sufficient
+    fraction = f(support)/g(support)
+    exponent = 2*(np.cumsum(fraction)-1)
+    log_pmf = exponent - np.log(g(support))
 
     pmf = np.exp(log_pmf - np.max(log_pmf))
     # normalize the pmf
     pmf = pmf / np.sum(pmf)
     return pmf
 
-
+# TODO: this needs to be optimized (e.g. by explicit solution? Or possibly by jax?)
 def pmf_from_coupled_fokker_planck(params, h, lam):
     """ 
     Solution to the Mean-field coupled Fokker-Planck equations. 
@@ -68,7 +89,7 @@ def pmf_from_coupled_fokker_planck(params, h, lam):
 
     # pmf of rest part
     x_max = params["N"] * (1 - params["mu"])
-    x_rest = np.arange(0, x_max + 1)
+    x_rest = np.arange(0, x_max + 1, dtype=int)
 
     if lam == 0:
         # in this case the rest cannot receive ANY input and hence the pdf is a delta distribution
