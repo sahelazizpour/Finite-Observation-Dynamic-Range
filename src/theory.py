@@ -45,7 +45,6 @@ def fp_solution(support, f, g):
     pmf = pmf / np.sum(pmf)
     return pmf
 
-# TODO: this needs to be optimized (e.g. by explicit solution? Or possibly by jax?)
 def pmf_from_coupled_fokker_planck(params, h, lam):
     """ 
     Solution to the Mean-field coupled Fokker-Planck equations. 
