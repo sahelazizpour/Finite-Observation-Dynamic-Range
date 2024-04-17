@@ -10,8 +10,8 @@
 #$ -t 1-595
 
 conda activate finite-observation
-exe="/data.nst/johannes/projects/sahel_finite-observation-dynamic-range/0_update/1_run_simulation.py"
-file_db="/data.nst/johannes/projects/sahel_finite-observation-dynamic-range/0_update/simulations.db"
+exe="/data.nst/johannes/projects/sahel_finite-observation-dynamic-range/1_run_simulation.py"
+file_db="/data.nst/johannes/projects/sahel_finite-observation-dynamic-range/simulations.db"
 
 seed=1009
 
