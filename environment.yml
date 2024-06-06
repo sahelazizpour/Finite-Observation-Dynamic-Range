@@ -1,0 +1,9 @@
+name: finite-observation
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - jax
+  - ipykernel
+  - pytables
+prefix: /Users/johannes/miniforge3/envs/finite-observation
