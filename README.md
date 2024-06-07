@@ -6,6 +6,9 @@ Simulation and analysis code in order to assess the impact of finite observation
 * make notebooks more consistent by moving analysis pipelines to analysis.py and only calling them from the notebook. Maybe they can then be actually merged?
 * Reply to # SAHEL comments
 * Clean up the test notebooks
+* clean up production notebooks!
+    * Make one notebook to plot the figures that only load files that are available under ./results/
+    * 
 
 ## Installation
 ```
@@ -13,7 +16,7 @@ conda create -n finite-observation python=3.11
 conda activate finite-observation
 conda install -c conda-forge jax
 pip install flax
-pip install matplotlib pandas tqdm h5py
+pip install matplotlib pandas tqdm h5py scipys
 ```
 
 ```

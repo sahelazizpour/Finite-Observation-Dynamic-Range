@@ -1,6 +1,21 @@
 import numpy as np
 from scipy import stats, signal, optimize
 
+def analysis_inf(pmf_o_given_h, h_range, epsilon, verbose=False):    
+    assert len(h_range) == 2
+    
+    pmf_ref_left = pmf_o_given_h(h_range[0])
+    pmf_ref_right = pmf_o_given_h(h_range[1])
+    pmf_refs = [pmf_ref_left, pmf_ref_right]
+
+    hs_left = find_discriminable_inputs(pmf_o_given_h, h_range, pmf_refs, epsilon, start="left", verbose=verbose)
+    hs_right = find_discriminable_inputs(pmf_o_given_h, h_range, pmf_refs, epsilon, start="right", verbose=verbose)
+
+    # return dynamic range and number of discriminable inputs
+    dr = dynamic_range((hs_left[0], hs_right[0]))
+    nd = 0.5 * (len(hs_left) + len(hs_right))
+    return dr, nd
+
 
 def calc_overlap(pmf1, pmf2):
     """
