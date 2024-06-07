@@ -9,6 +9,9 @@ import h5py
 
 
 def fit_beta_distribution(data, delta, seed=1234):
+    """
+    This function fits a beta distribution to the distribution of the mean output of the newtork
+    """
     for i in range(10):
         try:
             np.random.seed(seed)
@@ -408,11 +411,14 @@ def analysis_beta_approximation(
     # define pmf from convolution of beta distribution with Gaussian noise
     delta = 1 / beta_approx.params["N"]
     support = np.arange(0, 1 + 4 * params["sigma"], delta)
-    support = np.concatenate((-support[::-1], support[1:]))
+    support = np.concatenate((-support[::-1], support[1:]))   #Support of the pmf
     loc = beta_approx.params["loc"]
     scale = beta_approx.params["scale"]
 
     def ml_pmf(window, lam, h, verbose=False):
+        """
+        This funtion convolves the output beta distribution with a Gaussian noise
+        """
         a, b = beta_approx(lam, window, h)
         # pmf as difference of cdf to ensure that the pmf is normalized
         pmf_beta = np.diff(stats.beta.cdf(support, a, b, loc=loc, scale=scale))
