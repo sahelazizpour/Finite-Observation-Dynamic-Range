@@ -10,8 +10,8 @@
 #$ -t 1-21
 
 conda activate finite-observation
-exe="/data.nst/johannes/projects/sahel_finite-observation-dynamic-range/0_update/4_run_analysis_simulation.py"
-file_db="/data.nst/johannes/projects/sahel_finite-observation-dynamic-range/0_update/simulations.db"
+exe="/data.nst/johannes/projects/sahel_finite-observation-dynamic-range/scripts/run_analysis_simulation.py"
+file_db="/data.nst/johannes/projects/sahel_finite-observation-dynamic-range/simulations.db"
 
 #windows=(1 10 100 1000 10000)
 log_windows=($(seq 0 0.2 4))
