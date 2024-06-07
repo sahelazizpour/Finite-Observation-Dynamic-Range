@@ -7,7 +7,6 @@ def mean_field_activity(lam, mu, h, dt=1):
 
 # second part: Mean-field solution for T->0
 ##################
-import scipy
 
 def fp_solution(support, f, g):
     """
@@ -35,8 +34,8 @@ def fp_solution(support, f, g):
     # exponent = np.vectorize(exponent)
     # log_pmf = exponent(support) - np.log(g(support))
     
-    # first test with discrete sum is sufficient. we replaced the continous integral with a Riemannian sum where for each bin we choose the value of the right boundary.
-    #This works because changes in f and g are quiet small with x
+    # Replace continuous integral with a Riemann sum of bin size dx=1, where the value of the right boundary is chosen for each bin. This allows to evaluate all upper bounds of the integral in a cumulative sum. Since the integral from 0 to x=0 is zero, we start the cumulative sum at x=0 but subtract the first term f(0)/g(0).
+    # This assumes that f and g do not change much with x, which is a reasonable assumption for f and g that depend on x/N for large N.
     fraction = f(support)/g(support)
     exponent = 2*(np.cumsum(fraction)-f(0)/g(0))     
     log_pmf = exponent - np.log(g(support))
@@ -46,7 +45,7 @@ def fp_solution(support, f, g):
     pmf = pmf / np.sum(pmf)
     return pmf
 
-def pmf_from_coupled_fokker_planck(params, h, lam):
+def pmf_from_coupled_fokker_planck(params, h, lam, return_only_pmf=False):
     """ 
     Solution to the Mean-field coupled Fokker-Planck equations. 
     1.1) compute solution of FP equation of the part that receives input assuming a mean-field coupling to the recurrently coupled rest
@@ -114,5 +113,9 @@ def pmf_from_coupled_fokker_planck(params, h, lam):
     
     #return convolution of both
     pmf = np.convolve(pmf_in, pmf_rest, mode="full")
-    x = np.arange(0, len(pmf))
-    return x, pmf
+    if return_only_pmf:
+        return pmf
+    else:
+        # This should always be [0:N]
+        x = np.arange(0, len(pmf)) 
+        return x, pmf

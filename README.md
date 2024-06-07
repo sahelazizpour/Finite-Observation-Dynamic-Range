@@ -26,7 +26,7 @@ pip install scikit-learn
 
 ```
 pip install numba
-pip install dask, distributed
+pip install dask distributed
 ```
 
 # if database result is to be put into repository do this by dumping the sqlite file with

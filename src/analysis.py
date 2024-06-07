@@ -1,29 +1,65 @@
 import numpy as np
 from scipy import stats, signal, optimize
+from src.theory import *
 
-def analysis_inf(pmf_o_given_h, h_range, epsilon, verbose=False):    
+def analysis_dr_nd(pmf_o_given_h, h_range, pmf_refs, epsilon, verbose=False, return_h=False):    
     assert len(h_range) == 2
-    
-    pmf_ref_left = pmf_o_given_h(h_range[0])
-    pmf_ref_right = pmf_o_given_h(h_range[1])
-    pmf_refs = [pmf_ref_left, pmf_ref_right]
+    assert len(pmf_refs) == 2
 
     hs_left = find_discriminable_inputs(pmf_o_given_h, h_range, pmf_refs, epsilon, start="left", verbose=verbose)
     hs_right = find_discriminable_inputs(pmf_o_given_h, h_range, pmf_refs, epsilon, start="right", verbose=verbose)
 
     # return dynamic range and number of discriminable inputs
-    dr = dynamic_range((hs_left[0], hs_right[0]))
-    nd = 0.5 * (len(hs_left) + len(hs_right))
-    return dr, nd
+    if len(hs_left) > 0 and len(hs_right) > 0:
+        dr = dynamic_range((hs_left[0], hs_right[0]))
+        nd = 0.5 * (len(hs_left) + len(hs_right))
+    else:
+        dr = np.nan
+        nd = np.nan
 
+    if return_h:
+        return dr, nd, hs_left, hs_right
+    else:
+        return dr, nd
 
-def calc_overlap(pmf1, pmf2):
+def h_range_0(lam, params, verbose=False):
     """
-    calculates the overlap between two discrete probability mass functions
-    ATTENTION: needs user to ensure that domains are identical!
+    Determine appropriate h_range for the analysis_0 function based on system parameters and $\lambda$
     """
-    assert len(pmf1) == len(pmf2)
-    return np.sum(np.minimum(pmf1, pmf2)) * 0.5
+    # determine h range self-consistently from mean-field solution
+    # for low h, assume a population that receives mu*h!
+    # a = 1 - (1-lambda*a)(1-p_ext) st. (1-p_ext) = exp(-mu*h) = (1-a)/(1-lambda*a)
+    a_min = 0.1*params["sigma"] * params["mu"]
+    #h_left = -np.log((1 - a_min) / (1 - lam * params["mu"] * a_min))
+    h_left = -np.log((1 - a_min) / (1 - lam * a_min))/params["mu"]
+    # for high h, we can assume a_in = a such that a_in = a = 1-(1-lambda*a)(1-p_ext) and (1-p_ext) = exp(-h) = (1-a)/(a-lambda*a)
+    a_max = 1 - 0.1*params["sigma"]
+    h_right = -np.log((1 - a_max) / (1 - lam * a_max))
+    h_range = (h_left, h_right)
+    if verbose:
+        print(f"lambda: {lam}, h_range: {h_range}")
+    return h_range
+
+def pmf_refs_0(support, lam, params):
+    ref_left = stats.norm.pdf(
+        support,
+        params["N"] * mean_field_activity(lam, params["mu"], h=0),
+        params["N"] * params["sigma"],
+    )
+    ref_right = stats.norm.pdf(
+        support,
+        params["N"] * mean_field_activity(lam, params["mu"], h=np.inf),
+        params["N"] * params["sigma"],
+    )
+    return [ref_left, ref_right]
+
+def dynamic_range(h_range):
+    """
+    Calculate the dynamic range from the range h_range
+    """
+    assert len(h_range) == 2
+    h_left, h_right = h_range
+    return 10 * (np.log10(h_right) - np.log10(h_left))
 
 def find_discriminable_inputs(pmf, h_range, pmf_refs, epsilon:float, start="left", verbose=False):
     """
@@ -104,10 +140,10 @@ def find_discriminable_inputs(pmf, h_range, pmf_refs, epsilon:float, start="left
             break
     return hs
 
-def dynamic_range(h_range):
+def calc_overlap(pmf1, pmf2):
     """
-    Calculate the dynamic range from the range h_range
+    calculates the overlap between two discrete probability mass functions
+    ATTENTION: needs user to ensure that domains are identical!
     """
-    assert len(h_range) == 2
-    h_left, h_right = h_range
-    return 10 * (np.log10(h_right) - np.log10(h_left))
+    assert len(pmf1) == len(pmf2)
+    return np.sum(np.minimum(pmf1, pmf2)) * 0.5
