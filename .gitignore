@@ -8,6 +8,9 @@
 # Local History for Visual Studio Code
 .history/
 
+figures/*
+dat/
+
 # jupyter notebook
 .ipynb_checkpoints
 

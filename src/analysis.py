@@ -1,22 +1,6 @@
 import numpy as np
 from scipy import stats, signal, optimize
 
-def calc_overlap_beta(ab1, ab2, loc, scale):
-    """calculate the overlap between two beta distributions?"""
-    a1,b1 = ab1
-    a2,b2 = ab2
-    # calculate overlap defined as 0.5*int(min(f1,f2)) where f1 = beta(a1,b1,loc,scale) and f2 = beta(a2,b2,loc,scale)
-    # this is equivalent to 0.5*int(min(beta(a1,b1,loc,scale),beta(a2,b2,loc,scale)))
-
-    # # calculate the intersection of the two beta distributions
-    # # this is equivalent to the minimum of the two beta distributions
-    # a = np.minimum(a1,a2)
-    # b = np.minimum(b1,b2)
-    # # calculate the integral of the intersection
-    # # this is equivalent to the overlap between the two beta distributions
-    # overlap = stats.beta.cdf(1+2*delta, a, b, loc=loc, scale=scale) - stats.beta.cdf(-delta, a, b, loc=loc, scale=scale)
-    # return overlap
-    return None
 
 def calc_overlap(pmf1, pmf2):
     """
