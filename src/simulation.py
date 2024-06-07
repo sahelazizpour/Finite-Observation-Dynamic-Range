@@ -111,6 +111,7 @@ def step(x, w, p_h, rng):
         x[id_nonzero[id_spike]] = 1
     return x
 
+##SAHEL: adding a comment with what these steps are 'burn' 'equil' 'record'
 def simulation(params, steps={'burn':'self', 'equil':'self', 'record':'self'}, windows=np.array([1e0, 1e1, 1e2, 1e3, 1e4])):
     """
     run simulation and return sliding window estimates
@@ -150,6 +151,8 @@ def simulation(params, steps={'burn':'self', 'equil':'self', 'record':'self'}, w
     w = coupling_weights(params['N'], params['K'], params['lambda'], params['seed'])
     p_h = external_spiking_probability(params['N'], params['mu'], params['h'], params['seed'])
     lam = params['lambda']
+
+    ## SAHEL: why is tau defined like this?
     if lam > 1e-2:
         tau = - dt/ np.log(lam)
     else: 
@@ -157,6 +160,7 @@ def simulation(params, steps={'burn':'self', 'equil':'self', 'record':'self'}, w
     rng = np.random.RandomState(params['seed'])
 
     # current estimate with exponential smoothing
+    ## SAHEL: what's happening here?
     alphas = 1 - np.exp(-dt / windows)
     print(alphas)
     def update(estimates, x):

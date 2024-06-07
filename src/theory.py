@@ -35,9 +35,10 @@ def fp_solution(support, f, g):
     # exponent = np.vectorize(exponent)
     # log_pmf = exponent(support) - np.log(g(support))
     
-    # first test with discrete sum is sufficient
+    # first test with discrete sum is sufficient. we replaced the continous integral with a Riemannian sum where for each bin we choose the value of the right boundary.
+    #This works because changes in f and g are quiet small with x
     fraction = f(support)/g(support)
-    exponent = 2*(np.cumsum(fraction)-1)
+    exponent = 2*(np.cumsum(fraction)-f(0)/g(0))     
     log_pmf = exponent - np.log(g(support))
 
     pmf = np.exp(log_pmf - np.max(log_pmf))
@@ -49,14 +50,14 @@ def pmf_from_coupled_fokker_planck(params, h, lam):
     """ 
     Solution to the Mean-field coupled Fokker-Planck equations. 
     1.1) compute solution of FP equation of the part that receives input assuming a mean-field coupling to the recurrently coupled rest
-    $$ p_rec(x_in) = \lambda \frac{x_in + x_rest} {N} = \lambda\frac{x_in/N}{\left(1-(1-\mu\lambda)\right)}$$
+    $$ p_{rec}(x_{in}) = \lambda \frac{x_in + x_{rest}} {N} = \lambda\frac{x_{in}/N}{\left(1-(1-\mu\lambda)\right)}$$
     from mean-field assumption
-    $$ x_rest = \frac{(1-\mu)\lambda x_in}{1-(1-\mu)\lambda}$$ 
+    $$ x_{rest} = \frac{(1-\mu)\lambda x_{in}}{1-(1-\mu)\lambda}$$ 
 
     1.2) compute solution of FP equation for the part that does not receive input assuming a mean-field coupling to the input part
-    $$ p_rec(x_rest) = \lambda \frac{x_in + x_rest} {N} = \lambda\frac{x_rest/N + \mu p_\mathrm{ext}}{\left(1-\mu\lambda(1-p_\mathrm{ext})\right)}$$
+    $$ p_{rec}(x_{rest}) = \lambda \frac{x_{in} + x_{rest}} {N} = \lambda\frac{x_{rest}/N + \mu p_\mathrm{ext}}{\left(1-\mu\lambda(1-p_\mathrm{ext})\right)}$$
     with 
-    $$ x_in = \mu\frac{N p_\mathrm{ext} + \lambda (1-p_\mathrm{ext}) x_\mathrm{rest}}{1-\mu\lambda(1-p_\mathrm{ext})} $$
+    $$ x_{in} = \mu\frac{N p_\mathrm{ext} + \lambda (1-p_\mathrm{ext}) x_\mathrm{rest}}{1-\mu\lambda(1-p_\mathrm{ext})} $$
     2) convolution of the two solutions to obtain the full pmf
     """
     # probability of external activation
@@ -69,7 +70,7 @@ def pmf_from_coupled_fokker_planck(params, h, lam):
 
     p_rec = lambda x: lam * x / params["N"] / (1 - (1 - params["mu"]) * lam)
 
-    # NEW spikes generated from inactive neurons: (N^{input} - x^{input])
+    # NEW spikes generated from inactive neurons: (N^{input} - x^{input})
     # with probability of not being not activated: (1 - (1-p_rec)*(1-p_ext) )
     rate_birth = lambda x: (x_max - x) * (1 - (1 - p_rec(x)) * (1 - p_ext))
     # REMOVE spikes only if active neurons: x^{input}
