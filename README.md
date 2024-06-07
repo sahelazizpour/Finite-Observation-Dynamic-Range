@@ -3,12 +3,14 @@
 Simulation and analysis code in order to assess the impact of finite observation times on the concept of dynamics range.
 
 ## TODO:
-* make notebooks more consistent by moving analysis pipelines to analysis.py and only calling them from the notebook. Maybe they can then be actually merged?
 * Reply to # SAHEL comments
-* Clean up the test notebooks
+* match run_analysis_simulations to be the same as in analytic solutions
 * clean up production notebooks!
-    * Make one notebook to plot the figures that only load files that are available under ./results/
+    * plot_workflow (streamline)
+    * train_neural_network -> train_neural_network_to_approximate_beta
+    * fit_beta_to_data -> fit_beta_to_simulations
     * 
+* Clean up the test notebooks
 
 ## Installation
 ```

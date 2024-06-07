@@ -46,7 +46,7 @@ def __main__(args):
     # IMPORTANT: this is the resolution and range of lambda for the plots
     list_lambda = 1 - 10 ** np.linspace(0, -4, 64 + 1)
 
-    # this runs in parallel
+    # this runs in parallel (TODO: make this more similat to notebooks with analytic solutions)
     result = analysis_beta_approximation(params_results, list_lambda, args.database)
     save_analysis_beta_approximation(result, args.path, args.database)
 

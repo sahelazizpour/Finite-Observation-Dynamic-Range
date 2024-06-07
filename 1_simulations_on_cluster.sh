@@ -9,13 +9,11 @@
 #$ -e /scratch02.local/johannes/projects/sahel_finite-observation-dynamic-range/log/
 #$ -t 1-595
 
+seed=1009
+
 conda activate finite-observation
 exe="/data.nst/johannes/projects/sahel_finite-observation-dynamic-range/scripts/run_simulation.py"
 file_db="/data.nst/johannes/projects/sahel_finite-observation-dynamic-range/simulations.db"
-
-seed=1009
-
-#bash equivalent to numpys hs=np.logspace(-4, 1, 101) going from 1e-4 to 10
 
 loghs=($(seq -6.5 0.25 2))
 #loghs=($(seq 1.25 0.25 2))#$ -t 1-68
