@@ -70,19 +70,6 @@ def h_range_0(lam, params, verbose=False):
         print(f"lambda: {lam}, h_range: {h_range}")
     return h_range
 
-def pmf_refs_0(support, lam, params):
-    ref_left = stats.norm.pdf(
-        support,
-        params["N"] * mean_field_activity(lam, params["mu"], h=0),
-        params["N"] * params["sigma"],
-    )
-    ref_right = stats.norm.pdf(
-        support,
-        params["N"] * mean_field_activity(lam, params["mu"], h=np.inf),
-        params["N"] * params["sigma"],
-    )
-    return [ref_left, ref_right]
-
 def dynamic_range(h_range):
     """
     Calculate the dynamic range from the range h_range

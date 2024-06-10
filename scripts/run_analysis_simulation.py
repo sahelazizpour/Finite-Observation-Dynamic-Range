@@ -88,24 +88,24 @@ def __main__(args):
     )
     con.close()
 
-    delta = 1 / beta_approx.params["N"]
-    x_gauss = support_gauss(5 * params["sigma"], delta)
-
-    # pmf of the gaussian noise (needs delta for normalization)
-    pmf_gauss = stats.norm.pdf(x_gauss, 0, params["sigma"]) * delta 
-
-    # full support for convolution
-    x_conv = support_conv_pmf_gauss([0,1], x_gauss)
-
     # parameters of the beta distribution
     loc = beta_approx.params["loc"]
     scale = beta_approx.params["scale"]
+    # support for the gaussian noise
+    delta = 1 / beta_approx.params["N"]
+    x_gauss = support_gauss(5 * params["sigma"], delta)
+    # pmf of the gaussian noise (needs delta for normalization)
+    pmf_gauss = stats.norm.pdf(x_gauss, 0, params["sigma"]) * delta 
+
+    # full support for convolution (add another delta to the right because beta distribution is calculated from the difference of the cdf)
+    x_beta = support_conv_pmf_gauss([0,1+delta], x_gauss)
+    x_noise = support_conv_pmf_gauss([0,1], x_gauss)
 
     def pmf_noise(window, lam, h):
         a,b = beta_approx(lam, window, h)
         # pmf as difference of cdf to ensure that the pmf is normalized
-        pmf_beta = np.diff(stats.beta.cdf(x_conv, a, b, loc=loc, scale=scale))
-        return np.convolve(pmf_beta, pmf_gauss, mode="same")
+        pmf = np.diff(stats.beta.cdf(x_beta, a, b, loc=loc, scale=scale))
+        return np.convolve(pmf, pmf_gauss, mode="same")
 
     # parallel processing of different lambda values and store results in dataframe
     df = pd.DataFrame(columns=["lambda", "number_discriminable", "dynamic_range"])
@@ -114,70 +114,33 @@ def __main__(args):
     h_range = beta_approx.input_range[beta_approx.input_names.index("h")]
     print(f"Using h_range = {h_range}")
 
-    # TODO: rewrite to be consistent with the other analyses
-
-    # define function for dask
-    def analyse(lam):
+    ## define function for dask
+    def analyse(lam, verbose=False):
         """
-        return lambda, number of discriminable intervals, dynamic range
+            return lambda, number of discriminable intervals, dynamic range
         """
+        pmf_o_given_h = lambda h: pmf_noise(params['window'], lam, h)
 
-        def pmf_o_given_h(h):
-            return pmf_noise(params["window"], lam, h)
+        # get reference distributions from mean-field solution (needs delta for normalization because in domain [0,1] with stepsize delta)
+        pmf_refs = [stats.norm.pdf(x_noise, mean_field_activity(lam, params['mu'], h), params['sigma'])*delta for h in [0, np.inf]]
 
-        # activity_left = mean_field_activity(lam, params["mu"], 0)
-        # pmf_ref_left =  stats.norm.pdf(support, activity_left, params["sigma"]) * delta
-        # activity_right = mean_field_activity(lam, params["mu"], 1e3)
-        # pmf_ref_right = stats.norm.pdf(support, activity_right, params["sigma"]) * delta
-        pmf_ref_left = pmf_o_given_h(h_range[0])
-        pmf_ref_right = pmf_o_given_h(h_range[-1])
-        pmf_refs = [pmf_ref_left, pmf_ref_right]
+        # get dynamic range and number of discriminable states
+        dr, nd = analysis_dr_nd(pmf_o_given_h, h_range, pmf_refs, params["epsilon"], verbose=verbose)
+        return lam, dr, nd
 
-        hs_left = find_discriminable_inputs(
-            pmf_o_given_h, h_range, pmf_refs, params["epsilon"]
-        )
-        hs_right = find_discriminable_inputs(
-            pmf_o_given_h,
-            h_range,
-            pmf_refs,
-            params["epsilon"],
-            start="right",
-        )
-        if len(hs_left) > 0 and len(hs_right) > 0:
-            return (
-                lam,
-                0.5 * (len(hs_left) + len(hs_right)),
-                dynamic_range((hs_left[0], hs_right[0])),
-            )
-        else:
-            return lam, np.nan, np.nan
-
-    # execute independent lambda computations in parallel with dask
+    print("execute independent lambda analyses in parallel with dask")
     cluster = LocalCluster()
     dask_client = Client(cluster)
-
+    # map analysis function to list of lambda values and run these futures in parallel
     futures = dask_client.map(analyse, list_lambda)
-
-    # run analysis
     data = []
     for future in tqdm(as_completed(futures), total=len(list_lambda)):
         data.append(future.result())
 
     # sort data by first column
     data = np.array(sorted(data, key=lambda x: x[0]))
-
-
-
-
-
-
-
-
-
-
-
-
-    # write results to file and database
+    
+    print("write results to file and database")
     # save dataframe to ASCI files (tab-separated)
     filename = f"{path}/sigma={params['sigma']}_epsilon={params['epsilon']}/N={params['N']}_K={params['K']}_mu={params['mu']}/results_simulation_seed={params['seed']}_window={params['window']}.txt"
     # create directory if it does not exist
@@ -193,14 +156,11 @@ def __main__(args):
     params["filename"] = filename
 
     # store in database
-    con = sqlite3.connect(database)
-    cur = con.cursor()
-    insert_into_database(con, cur, "results", params)
-    con.commit()
-    con.close()
-
-
-
+    # con = sqlite3.connect(database)
+    # cur = con.cursor()
+    # insert_into_database(con, cur, "results", params)
+    # con.commit()
+    # con.close()
 
 if __name__ == "__main__":
     __main__(args)
