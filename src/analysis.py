@@ -3,6 +3,15 @@ from scipy import stats, signal, optimize
 from src.theory import *
 
 def analysis_dr_nd(pmf_o_given_h, h_range, pmf_refs, epsilon, verbose=False, return_h=False):    
+    """
+        Function to consistently analyze the dynamic range and number of discriminable inputs for different approaches (analytic, numerical)
+
+        # Parameters
+        - pmf_o_given_h: probability mass function of the output given the input
+        - h_range: range of possible h values (needs to match approach, e.g., numerical has limited h_range due to neural network approximation range)
+        - pmf_refs: reference probability mass functions that define the boundaries of the dynamic range
+        - epsilon: discrimination error that specifies maximal overlap between two probability mass functions
+    """
     assert len(h_range) == 2
     assert len(pmf_refs) == 2
 
@@ -21,6 +30,27 @@ def analysis_dr_nd(pmf_o_given_h, h_range, pmf_refs, epsilon, verbose=False, ret
         return dr, nd, hs_left, hs_right
     else:
         return dr, nd
+    
+
+def support_gauss(bound, delta):
+    """
+    Create support for Gaussian distribution with standard deviation std and resolution delta
+    """
+    support = np.arange(0.0, bound + delta, delta)
+    support = np.concatenate((-support[::-1][:-1], support))
+    return support
+
+def support_conv_pmf_gauss(xlim, support_gauss):
+    assert xlim[0] < xlim[-1]
+
+    # shift support_gauss by left boundary of xlim
+    support_1 = support_gauss + xlim[0]
+    # extract delta from support_gauss (by definition symmetric around 0) - this solves floating point precision issues that ca occur when defining delta = support_gauss[1] - support_gauss[0]
+    delta = support_gauss[len(support_gauss)//2+1]
+    # continue support until right boundary of xlim
+    support_2 = np.arange(support_1[-1], xlim[-1] + support_gauss[-1] + delta, delta)
+
+    return np.concatenate((support_1[:-1], support_2))
 
 def h_range_0(lam, params, verbose=False):
     """
