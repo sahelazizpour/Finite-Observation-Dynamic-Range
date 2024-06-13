@@ -1,6 +1,5 @@
 import numpy as np
 import scipy 
-from scipy import stats, signal, optimize
 from tqdm import tqdm
 import h5py
 import os

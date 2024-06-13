@@ -1,12 +1,7 @@
 # First step of approximation: fit the data to a beta distribution
 ##################
 import numpy as np
-from scipy import stats, signal, optimize
-import os
-import pickle
-import inspect
-import h5py
-
+from scipy import stats
 
 def fit_beta_distribution(data, delta, seed=1234):
     """
@@ -32,6 +27,8 @@ import torch.nn as nn
 import torch.optim as optim
 from sklearn.preprocessing import MinMaxScaler
 from tqdm import tqdm
+import pickle
+import inspect
 
 
 class DenseNN(nn.Module):

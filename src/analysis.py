@@ -1,5 +1,5 @@
 import numpy as np
-from scipy import stats, signal, optimize
+from scipy import optimize
 from src.theory import *
 
 def analysis_dr_nd(pmf_o_given_h, h_range, pmf_refs, epsilon, verbose=False, return_h=False):    

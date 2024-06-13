@@ -1,5 +1,4 @@
 import sqlite3
-import pandas as pd
 
 # quick fetch of data from database tables
 def fetch_from_database(con, cur, table, params):
