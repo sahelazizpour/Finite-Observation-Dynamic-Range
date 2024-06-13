@@ -6,9 +6,6 @@ import os
 import sqlite3
 from src.utils import *
 
-# does not seem to speed up things so may not be worth it
-from numba import jit
-
 def coupling_weights(N, K, lambda_, seed):
     """
     Generate coupling weights.
@@ -65,7 +62,6 @@ def external_spiking_probability(N, mu, h_, seed, dt=1):
     # return 2d array where first column is selected neurons and second column is p_h
     return (id_neurons, p_h*np.ones_like(id_neurons))
 
-@jit(nopython=True)
 def transfer(x):
     """
     Linear transfer function of the neurons.
@@ -74,7 +70,7 @@ def transfer(x):
     x[x>1] = 1
     return x
 
-def step(x, w, p_h, rng):
+def step(x, w, p_h, rng, numba=False):
     """
     Simulate one time step of the network.
 
@@ -82,9 +78,9 @@ def step(x, w, p_h, rng):
     ----------
     x : array of shape (N,)
         Current activity of the network.
-    w : (sparse) matrix of shape (N,N)
+    w : sparse matrix of shape (N,N)
         Connectivity matrix.
-    p_h : tuple of structure (ids, probs) both of lenght mu*N 
+    p_h : tuple of structure (ids, probs) both of length mu*N 
         External spiking probability.
     rng : numpy.random.RandomState
         Random number generator.
@@ -94,23 +90,25 @@ def step(x, w, p_h, rng):
     x : array of shape (N,)
         Updated activity of the network.
     """
-    # spike with probability w * x
+    # neurons spike with probability w * x
     p_rec = transfer(w @ x)
-    x = np.zeros_like(x)
-    # continue only for non-zero entries to save computation
-    id_nonzero = np.nonzero(p_rec)[0]
-    if np.size(id_nonzero) > 0:
-        id_spike = rng.random(np.size(id_nonzero)) < p_rec[id_nonzero]
-        x[id_nonzero[id_spike]] = 1
-    # or spike with probability h
-    id_nonzero = p_h[0]
-    if np.size(id_nonzero) > 0:
-        id_spike = rng.random(np.size(id_nonzero)) < p_h[1]
-        # add spikes to x (if already spiked this will remain 1)
-        x[id_nonzero[id_spike]] = 1
+
+    # reset x to zero
+    x.fill(0)
+    id_rec_nonzero = np.nonzero(p_rec)[0]
+    if id_rec_nonzero.size > 0:
+        spike = rng.random(size=id_rec_nonzero.size) < p_rec[id_rec_nonzero]
+        x[id_rec_nonzero[spike]] = 1
+    
+    # some neurons spike independently with probability h
+    id_h = p_h[0]
+    if id_h.size > 0:
+        spike = rng.random(size=id_h.size) < p_h[1]
+        # set state to 1 (if already 1 it just stays 1)
+        x[id_h[spike]] = 1
+
     return x
 
-##SAHEL: adding a comment with what these steps are 'burn' 'equil' 'record'
 def simulation(params, steps={'burn':'self', 'equil':'self', 'record':'self'}, windows=np.array([1e0, 1e1, 1e2, 1e3, 1e4])):
     """
     run simulation and return sliding window estimates
@@ -132,7 +130,13 @@ def simulation(params, steps={'burn':'self', 'equil':'self', 'record':'self'}, w
         - seed : int
             random seed
     steps : dict
-        dictionary with steps to run (default is self-consistently determined)
+        dictionary with update steps for different phases of the simulation (default is self-consistently determined with autorcorelation time tau(lambda) and processing window )
+        - burn : int
+            burn-in steps (steps that are completely discarded at beginning of simulation so that dynamics reach steady state). Self: max(30 * tau, window_max)
+        - equil : int
+            equilibration steps (steps during which we estimate running averages, but do not save them). Self: 3 * window_max
+        - record : int
+            recording steps (steps during which we save estimates). Self: max(1000 * tau, 100 * window_max)
     windows : array
         array with windows to use for sliding window estimates
 
@@ -151,23 +155,25 @@ def simulation(params, steps={'burn':'self', 'equil':'self', 'record':'self'}, w
     p_h = external_spiking_probability(params['N'], params['mu'], params['h'], params['seed'])
     lam = params['lambda']
 
-    ## SAHEL: why is tau defined like this?
+    # Autocorrelation time of the recurrent network dynamics tau is connected to the largest eigenvalue of the connectivity matrix
+    # We ensured that this by normalizing the sum over each column to be lambda, which becomes the largest eigenvalue. 
+    # Then $\tau = -dt / \ln(\lambda)$ (which numerically can only be computed for lambda > 0)
     if lam > 1e-2:
         tau = - dt/ np.log(lam)
     else: 
         tau = 0
     rng = np.random.RandomState(params['seed'])
 
-    # current estimate with exponential smoothing
-    ## SAHEL: what's happening here?
+    # estimate running average with exponential kernel:
+    # at each time point, we want to measure O(t) \propto int ds x(t-s) exp(-s/window)
+    # we can get this online by writing O(t) = (1-alpha) O(t-dt) + alpha x(t) with alpha = 1 - exp(-dt/window)
     alphas = 1 - np.exp(-dt / windows)
-    print(alphas)
     def update(estimates, x):
         estimates = (1-alphas)*estimates + alphas * np.mean(x)
         return estimates
     
     window_max = np.max(windows)
-    # get self-consistent times from timecale of network dynamics determined by lambda
+    # get self-consistent times from timescale of network dynamics determined by lambda
     steps_burn = steps['burn']
     if steps_burn == "self":
         steps_burn = int(max(30*tau,window_max))
