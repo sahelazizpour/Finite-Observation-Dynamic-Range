@@ -141,6 +141,7 @@ def __main__(args):
     print("write results to file and database")
     # save dataframe to ASCI files (tab-separated)
     filename = f"{path}/sigma={params['sigma']}_epsilon={params['epsilon']}/N={params['N']}_K={params['K']}_mu={params['mu']}/results_simulation_seed={params['seed']}_window={params['window']}.txt"
+    print(filename)
     # create directory if it does not exist
     os.makedirs(os.path.dirname(filename), exist_ok=True)
     # save data to file
@@ -153,12 +154,12 @@ def __main__(args):
     )
     params["filename"] = filename
 
-    # store in database
-    # con = sqlite3.connect(database)
-    # cur = con.cursor()
-    # insert_into_database(con, cur, "results", params)
-    # con.commit()
-    # con.close()
+    #store in database
+    con = sqlite3.connect(database)
+    cur = con.cursor()
+    insert_into_database(con, cur, "results", params)
+    con.commit()
+    con.close()
 
 if __name__ == "__main__":
     __main__(args)

@@ -5,11 +5,12 @@
 #$ -N fodr
 #$ -pe mvapich2-sam 32
 #$ -cwd
-#$ -o /data.nst/johannes/projects/sahel_finite-observation-dynamic-range/0_update/logs/
-#$ -e /data.nst/johannes/projects/sahel_finite-observation-dynamic-range/0_update/logs/
+#$ -j y
+#$ -o /data.nst/johannes/projects/sahel_finite-observation-dynamic-range/logs/
 #$ -t 1-21
 
 seed=1009
+sigma=0.01 #default=0.01
 
 conda activate finite-observation
 exe="/data.nst/johannes/projects/sahel_finite-observation-dynamic-range/scripts/run_analysis_simulation.py"
@@ -25,7 +26,7 @@ window=$(python -c "print(10**$log_window)")
 
 echo "submit script with seed=$seed, window=$window"
 
-path='./dat'
+path='./results/'
 mkdir -p $path
 
-python $exe --window $window --seed $seed --path $path --database $file_db
+python $exe --window $window --seed $seed --path $path --database $file_db --sigma $sigma
