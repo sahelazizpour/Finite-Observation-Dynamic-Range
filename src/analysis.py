@@ -52,18 +52,20 @@ def support_conv_pmf_gauss(xlim, support_gauss):
 
     return np.concatenate((support_1[:-1], support_2))
 
-def h_range_0(lam, params, verbose=False):
+def h_range_theory(lam, params, verbose=False):
     """
-    Determine appropriate h_range for the analysis_0 function based on system parameters and $\lambda$
+    Determine appropriate h_range for the analysis of our analytical approximations (if not [0,inf]) based on system parameters and $\lambda$
     """
     # determine h range self-consistently from mean-field solution
     # for low h, assume a population that receives mu*h!
     # a = 1 - (1-lambda*a)(1-p_ext) st. (1-p_ext) = exp(-mu*h) = (1-a)/(1-lambda*a)
-    a_min = 0.1*params["sigma"] * params["mu"]
+    # calculate distance to get overlap epsilon between two Gaussian distributions of variance sigma
+    
+    a_min = 0.001*params["sigma"]
     #h_left = -np.log((1 - a_min) / (1 - lam * params["mu"] * a_min))
     h_left = -np.log((1 - a_min) / (1 - lam * a_min))/params["mu"]
     # for high h, we can assume a_in = a such that a_in = a = 1-(1-lambda*a)(1-p_ext) and (1-p_ext) = exp(-h) = (1-a)/(a-lambda*a)
-    a_max = 1 - 0.1*params["sigma"]
+    a_max = 1 - 0.001*params["sigma"]
     h_right = -np.log((1 - a_max) / (1 - lam * a_max))
     h_range = (h_left, h_right)
     if verbose:
