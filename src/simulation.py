@@ -62,6 +62,32 @@ def external_spiking_probability(N, mu, h_, seed, dt=1):
     # return 2d array where first column is selected neurons and second column is p_h
     return (id_neurons, p_h*np.ones_like(id_neurons))
 
+def output_mask(N, nu, seed):
+    """
+    Generate output mask.
+
+    Parameters
+    ----------
+    N : int
+        Number of neurons.
+    nu : float
+        Fraction of neurons that are connected to the output estimate
+    seed : int
+        Random seed.
+
+    Returns
+    -------
+    mask_output : array of shape (N,)
+        Mask that specifies from which neurons the output is recorded.
+    """
+    assert nu<=1 and nu>=0, "nu must be in [0,1]"
+    np.random.seed(seed)
+    # boolean mask that specifies from which neurons the output is recorded
+    mask = np.zeros(N, dtype=bool)
+    id_output = np.random.choice(N, int(nu*N), replace=False)
+    mask[id_output] = True
+    return mask
+
 def transfer(x):
     """
     Linear transfer function of the neurons.
@@ -125,10 +151,14 @@ def simulation(params, steps={'burn':'self', 'equil':'self', 'record':'self'}, w
             coupling strength
         - mu : float
             fraction of neurons that receive external input
+        - nu : float
+            fraction of neurons that are connected to the output estimate
         - h : float
             external input
-        - seed : int
-            random seed
+        - seed_s : int
+            random seed static setup (recurrent weights and external coupling)
+        - seed_d : int
+            random seed for dynamics
     steps : dict
         dictionary with update steps for different phases of the simulation (default is self-consistently determined with autorcorelation time tau(lambda) and processing window )
         - burn : int
@@ -151,8 +181,9 @@ def simulation(params, steps={'burn':'self', 'equil':'self', 'record':'self'}, w
     dt = 1 #ms
 
     # create system
-    w = coupling_weights(params['N'], params['K'], params['lambda'], params['seed'])
-    p_h = external_spiking_probability(params['N'], params['mu'], params['h'], params['seed'])
+    w = coupling_weights(params['N'], params['K'], params['lambda'], params['seed_s'])
+    p_h = external_spiking_probability(params['N'], params['mu'], params['h'], params['seed_s'])
+    mask_output = output_mask(N=params['N'], nu=params['nu'], seed=params['seed_s'])
     lam = params['lambda']
 
     # Autocorrelation time of the recurrent network dynamics tau is connected to the largest eigenvalue of the connectivity matrix
@@ -162,14 +193,15 @@ def simulation(params, steps={'burn':'self', 'equil':'self', 'record':'self'}, w
         tau = - dt/ np.log(lam)
     else: 
         tau = 0
-    rng = np.random.RandomState(params['seed'])
+    rng = np.random.RandomState(params['seed_d'])
 
     # estimate running average with exponential kernel:
     # at each time point, we want to measure O(t) \propto int ds x(t-s) exp(-s/window)
     # we can get this online by writing O(t) = (1-alpha) O(t-dt) + alpha x(t) with alpha = 1 - exp(-dt/window)
     alphas = 1 - np.exp(-dt / windows)
+    estimate = lambda x : np.mean(x[mask_output])
     def update(estimates, x):
-        estimates = (1-alphas)*estimates + alphas * np.mean(x)
+        estimates = (1-alphas)*estimates + alphas * estimate(x)
         return estimates
     
     window_max = np.max(windows)
@@ -197,7 +229,7 @@ def simulation(params, steps={'burn':'self', 'equil':'self', 'record':'self'}, w
         x = step(x, w, p_h, rng)
 
     # start with the estimation that requires equilibration
-    estimates = np.ones_like(windows)*np.mean(x)  
+    estimates = np.ones_like(windows)*estimate(x)
     for t in tqdm(range(steps_equil), desc="equilibration for running estimates"):
         x = step(x, w, p_h, rng)
         estimates = update(estimates, x)
