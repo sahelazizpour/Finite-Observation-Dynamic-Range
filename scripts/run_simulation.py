@@ -7,6 +7,7 @@ parser.add_argument('--seed', type=int, required=True)
 parser.add_argument('--N', type=int, default=int(1e4))
 parser.add_argument('--K', type=int, default=100)
 parser.add_argument('--mu', type=float, default=0.2)
+parser.add_argument('--nu', type=float, default=1.0)
 parser.add_argument('--dt', type=float, default=1)
 parser.add_argument('--path', type=str, required=True)
 parser.add_argument('--database', type=str, required=True)
@@ -23,6 +24,7 @@ def __main__(args):
         'K': args.K,
         'lambda': 1-10**args.log10_eps,
         'mu': args.mu,
+        'nu': args.nu,
         'h': 10**args.log10_h,
         'seed': args.seed,
     }

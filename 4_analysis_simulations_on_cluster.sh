@@ -10,11 +10,13 @@
 #$ -t 1-21
 
 seed=1000
-sigma=0.005 #default=0.01
+sigma=0.01 #default=0.01
 
 conda activate finite-observation
 exe="/data.nst/johannes/projects/sahel_finite-observation-dynamic-range/scripts/run_analysis_simulation.py"
-file_db="/data.nst/johannes/projects/sahel_finite-observation-dynamic-range/simulations.db"
+file_db="/data.nst/johannes/projects/sahel_finite-observation-dynamic-range/simulations_nu0.2.db"
+path='./results/nu=0.2/'
+mkdir -p $path
 
 #windows=(1 10 100 1000 10000)
 log_windows=($(seq 0 0.2 4))
@@ -25,8 +27,5 @@ log_window=${log_windows[$SGE_TASK_ID - 1]}
 window=$(python -c "print(10**$log_window)")
 
 echo "submit script with seed=$seed, window=$window"
-
-path='./results/'
-mkdir -p $path
 
 python $exe --window $window --seed $seed --path $path --database $file_db --sigma $sigma
