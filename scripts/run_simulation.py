@@ -26,7 +26,8 @@ def __main__(args):
         'mu': args.mu,
         'nu': args.nu,
         'h': 10**args.log10_h,
-        'seed': args.seed,
+        'seed_s': args.seed, # static properties
+        'seed_d': args.seed, # dynamics
     }
     #check first if simulation parameters are not already in database (TODO, not clear how to marry this with the windows!)
     # con = sqlite3.connect(args.database)
