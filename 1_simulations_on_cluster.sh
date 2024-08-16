@@ -5,9 +5,10 @@
 #$ -N fodr
 #$ -q rostam.q
 #$ -cwd
+#$ -j y
 #$ -o /scratch02.local/johannes/projects/sahel_finite-observation-dynamic-range/log/
-#$ -e /scratch02.local/johannes/projects/sahel_finite-observation-dynamic-range/log/
 #$ -t 1-595
+
 
 seed=1001
 

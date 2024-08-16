@@ -60,6 +60,8 @@ def external_spiking_probability(N, mu, h_, seed, dt=1):
     id_neurons = np.random.choice(N, int(mu*N), replace=False)
     p_h = 1 - np.exp(-h_*dt)
     # return 2d array where first column is selected neurons and second column is p_h
+    print(f'number input neurons: {len(id_neurons)}')
+
     return (id_neurons, p_h*np.ones_like(id_neurons))
 
 def output_mask(N, nu, seed):
@@ -81,11 +83,12 @@ def output_mask(N, nu, seed):
         Mask that specifies from which neurons the output is recorded.
     """
     assert nu<=1 and nu>=0, "nu must be in [0,1]"
-    np.random.seed(seed)
+    np.random.seed(seed+1) # make sure it is NOT the same seed as for the input neurons!!!
     # boolean mask that specifies from which neurons the output is recorded
     mask = np.zeros(N, dtype=bool)
     id_output = np.random.choice(N, int(nu*N), replace=False)
     mask[id_output] = True
+    print(f'number output neurons: {np.sum(mask)}')
     return mask
 
 def transfer(x):
@@ -155,7 +158,7 @@ def simulation(params, steps={'burn':'self', 'equil':'self', 'record':'self'}, w
             fraction of neurons that are connected to the output estimate
         - h : float
             external input
-        - seed_s : int
+        - seed : int
             random seed static setup (recurrent weights and external coupling)
         - seed_d : int
             random seed for dynamics
@@ -183,11 +186,10 @@ def simulation(params, steps={'burn':'self', 'equil':'self', 'record':'self'}, w
     print("simulation with parameters:", params)
     print("recording windows:", windows)    
 
-
     # create system
-    w = coupling_weights(params['N'], params['K'], params['lambda'], params['seed_s'])
-    p_h = external_spiking_probability(params['N'], params['mu'], params['h'], params['seed_s'])
-    mask_output = output_mask(N=params['N'], nu=params['nu'], seed=params['seed_s'])
+    w = coupling_weights(params['N'], params['K'], params['lambda'], params['seed'])
+    p_h = external_spiking_probability(params['N'], params['mu'], params['h'], params['seed'])
+    mask_output = output_mask(N=params['N'], nu=params['nu'], seed=params['seed'])
     lam = params['lambda']
 
     # Autocorrelation time of the recurrent network dynamics tau is connected to the largest eigenvalue of the connectivity matrix
