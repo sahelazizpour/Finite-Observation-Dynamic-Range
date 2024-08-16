@@ -180,6 +180,10 @@ def simulation(params, steps={'burn':'self', 'equil':'self', 'record':'self'}, w
     # timescale of simulation is in ms
     dt = 1 #ms
 
+    print("simulation with parameters:", params)
+    print("recording windows:", windows)    
+
+
     # create system
     w = coupling_weights(params['N'], params['K'], params['lambda'], params['seed_s'])
     p_h = external_spiking_probability(params['N'], params['mu'], params['h'], params['seed_s'])
@@ -250,7 +254,10 @@ def simulation(params, steps={'burn':'self', 'equil':'self', 'record':'self'}, w
     return result
 
 def get_filename(path, params):
-    return f'{path}/N={params["N"]}_K={params["K"]}/seed={params["seed"]}/1-lambda={1-params["lambda"]:.2e}/simulation_mu={params["mu"]:.2f}_h={params["h"]:.2e}.h5'
+    if params["nu"] < 1:
+        return f'{path}/nu={params["nu"]}/N={params["N"]}_K={params["K"]}/seed={params["seed"]}/1-lambda={1-params["lambda"]:.2e}/simulation_mu={params["mu"]:.2f}_h={params["h"]:.2e}.h5'
+    else:    
+        return f'{path}/N={params["N"]}_K={params["K"]}/seed={params["seed"]}/1-lambda={1-params["lambda"]:.2e}/simulation_mu={params["mu"]:.2f}_h={params["h"]:.2e}.h5'
 
 def save_simulation(result, path='./dat/', database='./simulations.db', verbose=False):
     """

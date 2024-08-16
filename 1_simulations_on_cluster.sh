@@ -9,11 +9,11 @@
 #$ -e /scratch02.local/johannes/projects/sahel_finite-observation-dynamic-range/log/
 #$ -t 1-595
 
-seed=1009
+seed=1001
 
 conda activate finite-observation
 exe="/data.nst/johannes/projects/sahel_finite-observation-dynamic-range/scripts/run_simulation.py"
-file_db="/data.nst/johannes/projects/sahel_finite-observation-dynamic-range/simulations.db"
+file_db="/data.nst/johannes/projects/sahel_finite-observation-dynamic-range/simulations_nu0.2.db"
 
 loghs=($(seq -6.5 0.25 2))
 #loghs=($(seq 1.25 0.25 2))#$ -t 1-68
@@ -28,9 +28,11 @@ ide=$(( (SGE_TASK_ID-1)/numhs ))
 logh=${loghs[$idh]}
 loge=${loges[$ide]}
 
-echo "submit script with seed=$seed, log(h)=$logh, log(1-lamda)=$loge"
+nu=0.2
+
+echo "submit script with nu=$nu, seed=$seed, log(h)=$logh, log(1-lamda)=$loge"
 
 path='/scratch02.local/johannes/projects/sahel_finite-observation-dynamic-range/'
 mkdir -p $path
 
-python $exe --log10_eps ${loge} --log10_h ${logh} --seed $seed --path $path --database $file_db
+python $exe --log10_eps ${loge} --log10_h ${logh} --seed $seed --path $path --database $file_db --nu $nu
