@@ -10,7 +10,7 @@
 #$ -t 1-595
 
 
-seed=1001
+seed=1009
 
 conda activate finite-observation
 exe="/data.nst/johannes/projects/sahel_finite-observation-dynamic-range/scripts/run_simulation.py"

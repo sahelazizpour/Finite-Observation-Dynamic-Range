@@ -9,7 +9,7 @@
 #$ -o /data.nst/johannes/projects/sahel_finite-observation-dynamic-range/logs/
 #$ -t 1-21
 
-seed=1000
+seed=1009
 sigma=0.01 #default=0.01
 
 conda activate finite-observation
